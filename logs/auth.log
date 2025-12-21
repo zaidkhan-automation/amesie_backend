@@ -1,0 +1,19 @@
+2025-10-02 22:08:10,191 - auth - INFO - Login attempt for user: priya.singh.crafts@example.com
+2025-10-02 22:08:10,415 - auth - INFO - Successful login for user: priya.singh.crafts@example.com (Role: SELLER)
+2025-10-02 22:09:54,963 - auth - INFO - Login attempt for user: priya.singh.crafts@example.com
+2025-10-02 22:09:55,182 - auth - INFO - Successful login for user: priya.singh.crafts@example.com (Role: SELLER)
+2025-10-02 22:10:06,925 - auth - INFO - Login attempt for user: priya.singh.crafts@example.com
+2025-10-02 22:10:07,146 - auth - INFO - Successful login for user: priya.singh.crafts@example.com (Role: SELLER)
+2025-12-09 15:35:42,626 - auth - INFO - Login attempt for user: test@local
+2025-12-09 15:35:42,708 - auth - WARNING - Failed login attempt for user: test@local
+2025-12-09 15:37:26,844 - auth - INFO - New user registration attempt: test@local.com
+2025-12-09 15:37:27,160 - auth - INFO - User registered successfully: test@local.com
+2025-12-09 15:37:42,983 - auth - INFO - Login attempt for user: test@local.com
+2025-12-09 15:37:43,273 - auth - INFO - Successful login for user: test@local.com (Role: CUSTOMER)
+2025-12-11 10:26:58,473 - auth - INFO - New user registration attempt: zaidkhan93315@gmail.com
+2025-12-11 10:27:00,537 - auth - INFO - New user registration attempt: zaidkhan93315@gmail.com
+2025-12-11 10:27:01,301 - auth - INFO - New user registration attempt: zaidkhan93315@gmail.com
+2025-12-11 10:27:02,079 - auth - INFO - New user registration attempt: zaidkhan93315@gmail.com
+2025-12-12 07:21:26,802 - auth - INFO - New user registration attempt: silvercity320@gmail.com
+2025-12-14 08:51:09,470 - auth - INFO - Login attempt for user: silvercity320@gmail.com
+2025-12-14 08:51:09,721 - auth - WARNING - Failed login attempt for user: silvercity320@gmail.com

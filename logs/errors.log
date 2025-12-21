@@ -1,0 +1,1029 @@
+2025-10-02 20:28:59,120 - main - ERROR - POST /api/auth/register/seller - ERROR: bcrypt: no backends available -- recommend you install one (e.g. 'pip install bcrypt') - Time: 0.167s - Client: 127.0.0.1
+2025-10-02 20:32:56,576 - main - ERROR - POST /api/auth/register/seller - ERROR: bcrypt: no backends available -- recommend you install one (e.g. 'pip install bcrypt') - Time: 0.133s - Client: 127.0.0.1
+2025-10-02 20:41:52,631 - main - ERROR - POST /api/auth/register/seller - ERROR: bcrypt: no backends available -- recommend you install one (e.g. 'pip install bcrypt') - Time: 0.188s - Client: 127.0.0.1
+2025-10-02 20:42:43,892 - main - ERROR - POST /api/auth/register/seller - ERROR: bcrypt: no backends available -- recommend you install one (e.g. 'pip install bcrypt') - Time: 0.091s - Client: 127.0.0.1
+2025-10-02 20:45:17,084 - main - ERROR - POST /api/auth/register/seller - ERROR: bcrypt: no backends available -- recommend you install one (e.g. 'pip install bcrypt') - Time: 0.071s - Client: 127.0.0.1
+2025-10-02 20:46:23,126 - main - ERROR - POST /api/auth/register/seller - ERROR: bcrypt: no backends available -- recommend you install one (e.g. 'pip install bcrypt') - Time: 0.115s - Client: 127.0.0.1
+2025-12-08 14:04:50,416 - main - ERROR - GET / - ERROR: index.html - Time: 0.004s - Client: 127.0.0.1
+2025-12-08 14:06:07,822 - main - ERROR - GET / - ERROR: index.html - Time: 0.002s - Client: 127.0.0.1
+2025-12-11 10:26:58,923 - main - ERROR - POST /api/auth/register - ERROR: password cannot be longer than 72 bytes, truncate manually if necessary (e.g. my_password[:72]) - Time: 0.505s - Client: 103.3.235.51
+2025-12-11 10:27:00,567 - main - ERROR - POST /api/auth/register - ERROR: password cannot be longer than 72 bytes, truncate manually if necessary (e.g. my_password[:72]) - Time: 0.036s - Client: 103.3.235.51
+2025-12-11 10:27:01,335 - main - ERROR - POST /api/auth/register - ERROR: password cannot be longer than 72 bytes, truncate manually if necessary (e.g. my_password[:72]) - Time: 0.036s - Client: 103.3.235.51
+2025-12-11 10:27:02,187 - main - ERROR - POST /api/auth/register - ERROR: password cannot be longer than 72 bytes, truncate manually if necessary (e.g. my_password[:72]) - Time: 0.112s - Client: 103.3.235.51
+2025-12-12 07:21:27,166 - main - ERROR - POST /api/auth/register - ERROR: password cannot be longer than 72 bytes, truncate manually if necessary (e.g. my_password[:72]) - Time: 0.485s - Client: 182.69.178.142
+2025-12-19 15:49:43,793 - main - ERROR - GET /products - ERROR: 'products.html' not found in search path: '/root/frontend/templates' - Time: 0.001s - Client: 103.3.235.52
+2025-12-19 15:49:43,920 - main - ERROR - GET /products - ERROR: 'products.html' not found in search path: '/root/frontend/templates' - Time: 0.001s - Client: 103.3.235.52
+2025-12-19 15:49:44,511 - main - ERROR - GET /orders - ERROR: 'orders.html' not found in search path: '/root/frontend/templates' - Time: 0.001s - Client: 103.3.235.52
+2025-12-19 15:51:25,372 - main - ERROR - GET /products - ERROR: 'products.html' not found in search path: '/root/frontend/templates' - Time: 0.001s - Client: 103.3.235.52
+2025-12-19 15:51:25,508 - main - ERROR - GET /products - ERROR: 'products.html' not found in search path: '/root/frontend/templates' - Time: 0.001s - Client: 103.3.235.52
+2025-12-19 18:42:46,079 - graph_service - ERROR - [GRAPH] Cypher execution FAILED
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 69, in get_similar_products
+    rows = db.execute(text(sql)).all()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.InternalError: (psycopg2.errors.InternalError_) unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+[SQL: 
+    SELECT b, r
+    FROM ag_catalog.cypher(
+        'amesie_graph',
+        $$
+            MATCH (a:Product {pid: 13})-[r:SIMILAR]->(b:Product)
+            RETURN b, r
+            ORDER BY r.weight DESC
+            LIMIT 5
+        $$
+    ) AS (
+        b ag_catalog.agtype,
+        r ag_catalog.agtype
+    );
+    ]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-12-19 18:44:44,498 - graph_service - ERROR - [GRAPH] Cypher execution failed
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedObject: unrecognized configuration parameter "graph_path"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 50, in get_similar_products
+    result = db.execute(text(sql))
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedObject) unrecognized configuration parameter "graph_path"
+
+[SQL: 
+    SET LOCAL search_path = ag_catalog, "$user", public;
+    SET LOCAL graph_path = amesie_graph;
+
+    SELECT b, r
+    FROM cypher(
+        $$
+            MATCH (a:Product {pid: 13})-[r:SIMILAR]->(b:Product)
+            RETURN b, r
+            ORDER BY r.weight DESC
+            LIMIT 5
+        $$
+    ) AS (
+        b ag_catalog.agtype,
+        r ag_catalog.agtype
+    );
+    ]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-19 18:44:49,459 - graph_service - ERROR - [GRAPH] Cypher execution failed
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedObject: unrecognized configuration parameter "graph_path"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 50, in get_similar_products
+    result = db.execute(text(sql))
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedObject) unrecognized configuration parameter "graph_path"
+
+[SQL: 
+    SET LOCAL search_path = ag_catalog, "$user", public;
+    SET LOCAL graph_path = amesie_graph;
+
+    SELECT b, r
+    FROM cypher(
+        $$
+            MATCH (a:Product {pid: 13})-[r:SIMILAR]->(b:Product)
+            RETURN b, r
+            ORDER BY r.weight DESC
+            LIMIT 5
+        $$
+    ) AS (
+        b ag_catalog.agtype,
+        r ag_catalog.agtype
+    );
+    ]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-19 18:50:04,882 - graph - ERROR - [GRAPH] Cypher execution failed
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 53, in get_similar_products
+    result = db.execute(text(sql))
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.InternalError: (psycopg2.errors.InternalError_) unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+[SQL: 
+    SET LOCAL search_path = ag_catalog, "$user", public;
+
+    SELECT b, r
+    FROM cypher(
+        'amesie_graph',
+        $$
+            MATCH (a:Product {pid: 13})-[r:SIMILAR]->(b:Product)
+            RETURN b, r
+            ORDER BY r.weight DESC
+            LIMIT 5
+        $$
+    ) AS (
+        b ag_catalog.agtype,
+        r ag_catalog.agtype
+    );
+    ]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-12-19 18:55:53,264 - graph - ERROR - [GRAPH] Cypher execution failed
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 53, in get_similar_products
+    logger.exception("[GRAPH] FAILED")
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.InternalError: (psycopg2.errors.InternalError_) unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+[SQL: 
+    SET LOCAL search_path = ag_catalog, "$user", public;
+
+    SELECT b, r
+    FROM cypher(
+        'amesie_graph',
+        $$
+            MATCH (a:Product {pid: 13})-[r:SIMILAR]->(b:Product)
+            RETURN b, r
+            ORDER BY r.weight DESC
+            LIMIT 5
+        $$
+    ) AS (
+        b ag_catalog.agtype,
+        r ag_catalog.agtype
+    );
+    ]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-12-20 09:41:37,344 - graph_service - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 44, in get_similar_products
+    rows = db.execute(
+           ^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1413, in execute
+    distilled_parameters = _distill_params_20(parameters)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "lib/sqlalchemy/cyextension/util.pyx", line 26, in sqlalchemy.cyextension.util._distill_params_20
+sqlalchemy.exc.ArgumentError: List argument must consist only of dictionaries
+2025-12-20 09:45:22,656 - graph_service - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedTable: missing FROM-clause entry for table "b"
+LINE 5:         (b.props->>'pid')::int        AS pid,
+                 ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 40, in get_similar_products
+    rows = db.execute(
+           ^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) missing FROM-clause entry for table "b"
+LINE 5:         (b.props->>'pid')::int        AS pid,
+                 ^
+
+[SQL: 
+    SET LOCAL search_path = ag_catalog, "$user", public;
+
+    SELECT
+        (b.props->>'pid')::int        AS pid,
+        b.props->>'name'              AS name,
+        (b.props->>'price')::float   AS price,
+        (r.props->>'weight')::float  AS weight
+    FROM cypher(
+        'amesie_graph',
+        $$
+            MATCH (a:Product {pid: $pid})-[r:SIMILAR]->(b:Product)
+            RETURN b, r
+            ORDER BY r.weight DESC
+            LIMIT $limit
+        $$
+    ) AS (
+        b agtype,
+        r agtype
+    );
+    ]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-20 09:48:46,531 - graph_service - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedTable: missing FROM-clause entry for table "b"
+LINE 5:         (b.props->>'pid')::int        AS pid,
+                 ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 40, in get_similar_products
+    r agtype
+       ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) missing FROM-clause entry for table "b"
+LINE 5:         (b.props->>'pid')::int        AS pid,
+                 ^
+
+[SQL: 
+    SET LOCAL search_path = ag_catalog, "$user", public;
+
+    SELECT
+        (b.props->>'pid')::int        AS pid,
+        b.props->>'name'              AS name,
+        (b.props->>'price')::float   AS price,
+        (r.props->>'weight')::float  AS weight
+    FROM cypher(
+        'amesie_graph',
+        $$
+            MATCH (a:Product {pid: $pid})-[r:SIMILAR]->(b:Product)
+            RETURN b, r
+            ORDER BY r.weight DESC
+            LIMIT $limit
+        $$
+    ) AS (
+        b agtype,
+        r agtype
+    );
+    ]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-20 09:53:37,421 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedFunction: function agtype_to_jsonb(agtype) does not exist
+LINE 5:             (agtype_to_jsonb(b)->'properties'->>'pid')::int ...
+                     ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 42, in get_similar_products
+    rows = db.execute(
+           ^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedFunction) function agtype_to_jsonb(agtype) does not exist
+LINE 5:             (agtype_to_jsonb(b)->'properties'->>'pid')::int ...
+                     ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+
+[SQL: 
+        SET LOCAL search_path = ag_catalog, "$user", public;
+
+        SELECT
+            (agtype_to_jsonb(b)->'properties'->>'pid')::int        AS product_id,
+            agtype_to_jsonb(b)->'properties'->>'name'              AS name,
+            (agtype_to_jsonb(b)->'properties'->>'price')::float   AS price,
+            (agtype_to_jsonb(r)->'properties'->>'weight')::float  AS weight
+        FROM cypher(
+            'amesie_graph',
+            $$
+                MATCH (a:Product {pid: $pid})-[r:SIMILAR]->(b:Product)
+                RETURN b, r
+                ORDER BY r.weight DESC
+                LIMIT $limit
+            $$
+        ) AS (
+            b agtype,
+            r agtype
+        );
+    ]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-20 09:59:36,409 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 40, in get_similar_products
+    rows = db.execute(text(cypher_query)).fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.InternalError: (psycopg2.errors.InternalError_) unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+[SQL: 
+        SET LOCAL search_path = ag_catalog, "$user", public;
+
+        SELECT
+            pid,
+            name,
+            price,
+            weight
+        FROM cypher(
+            'amesie_graph',
+            $$
+                MATCH (a:Product {pid: 13})-[r:SIMILAR]->(b:Product)
+                RETURN
+                    b.pid   AS pid,
+                    b.name  AS name,
+                    b.price AS price,
+                    r.weight AS weight
+                ORDER BY r.weight DESC
+                LIMIT 5
+            $$
+        ) AS (
+            pid int,
+            name text,
+            price float,
+            weight float
+        );
+    ]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-12-20 10:03:05,632 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 42, in get_similar_products
+    rows = db.execute(text(cypher_sql)).fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2258, in _execute_internal
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.InternalError: (psycopg2.errors.InternalError_) unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+[SQL: 
+            SELECT
+                pid,
+                name,
+                price,
+                weight
+            FROM cypher(
+                'amesie_graph',
+                $$
+                    MATCH (a:Product {pid: 13})-[r:SIMILAR]->(b:Product)
+                    RETURN
+                        b.pid    AS pid,
+                        b.name   AS name,
+                        b.price  AS price,
+                        r.weight AS weight
+                    ORDER BY r.weight DESC
+                    LIMIT 5
+                $$
+            ) AS (
+                pid int,
+                name text,
+                price float,
+                weight float
+            );
+        ]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-12-20 10:07:10,404 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 47, in get_similar_products
+    result = conn.exec_driver_sql(sql)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1779, in exec_driver_sql
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.InternalError: (psycopg2.errors.InternalError_) unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+[SQL: 
+        SELECT
+            pid,
+            name,
+            price,
+            weight
+        FROM cypher(
+            'amesie_graph',
+            $$
+                MATCH (a:Product {pid: 13})-[r:SIMILAR]->(b:Product)
+                RETURN
+                    b.pid    AS pid,
+                    b.name   AS name,
+                    b.price  AS price,
+                    r.weight AS weight
+                ORDER BY r.weight DESC
+                LIMIT 5
+            $$
+        ) AS (
+            pid int,
+            name text,
+            price float,
+            weight float
+        );
+        ]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-12-20 10:17:41,689 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 59, in get_similar_products
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+2025-12-20 10:20:10,802 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 25, in get_similar_products
+    conn = psycopg2.connect(**DB_CONFIG)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: connection to server at "localhost" (::1), port 5432 failed: FATAL:  unrecognized configuration parameter "prepareThreshold"
+
+2025-12-20 10:22:35,562 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 58, in get_similar_products
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+2025-12-20 10:25:01,961 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 15, in get_similar_products
+    conn = db.connection().connection   # 🔥 reuse SQLAlchemy connection
+           ^^^^^^^^^^^^^
+AttributeError: 'int' object has no attribute 'connection'
+2025-12-20 10:27:26,039 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 13, in get_similar_products
+    raw_conn = db.get_bind().raw_connection()
+               ^^^^^^^^^^^
+AttributeError: 'int' object has no attribute 'get_bind'
+2025-12-20 10:30:51,442 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 50, in get_similar_products
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InvalidParameterValue: third argument of cypher function must be a parameter
+LINE 19:             NULL
+                     ^
+
+2025-12-20 10:33:45,788 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 52, in get_similar_products
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InvalidParameterValue: third argument of cypher function must be a parameter
+LINE 19:             '{}'
+                     ^
+
+2025-12-20 10:36:23,662 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 52, in get_similar_products
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InvalidParameterValue: third argument of cypher function must be a parameter
+LINE 19:             '{}'
+                     ^
+
+2025-12-20 10:40:20,493 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 51, in get_similar_products
+    cur.execute(sql, (params,))
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InvalidParameterValue: third argument of cypher function must be a parameter
+LINE 19:             '{"product_id": 13, "limit": 5}'
+                     ^
+
+2025-12-21 10:14:43,027 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 14, in get_similar_products
+    raw_conn = db.connection().connection
+               ^^^^^^^^^^^^^
+AttributeError: 'int' object has no attribute 'connection'
+2025-12-21 10:16:14,476 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 55, in get_similar_products
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+2025-12-21 10:19:17,954 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 58, in get_similar_products
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedFunction: function ag_catalog.cypher(unknown, unknown, jsonb) does not exist
+LINE 7:         FROM ag_catalog.cypher(
+                     ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+
+2025-12-21 10:31:39,350 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 13, in get_similar_products
+    raw_conn = db.connection().connection
+               ^^^^^^^^^^^^^
+AttributeError: 'int' object has no attribute 'connection'
+2025-12-21 11:01:35,511 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 46, in get_similar_products
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+2025-12-21 11:02:41,610 - graph - ERROR - [GRAPH] FAILED to fetch recommendations
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_service.py", line 45, in get_similar_products
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+2025-12-21 11:17:16,025 - graph_debugger - ERROR - [FAIL] Graph exists
+2025-12-21 11:17:16,025 - graph_debugger - ERROR - permission denied for table ag_graph
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InsufficientPrivilege: permission denied for table ag_graph
+
+2025-12-21 11:17:16,028 - graph_debugger - ERROR - [FAIL] Simple cypher test
+2025-12-21 11:17:16,028 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+2025-12-21 11:17:16,029 - graph_debugger - ERROR - [FAIL] Product node exists
+2025-12-21 11:17:16,029 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+2025-12-21 11:17:16,030 - graph_debugger - ERROR - [FAIL] SIMILAR edges count
+2025-12-21 11:17:16,030 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+2025-12-21 11:17:16,031 - graph_debugger - ERROR - [FAIL] FINAL recommendation query
+2025-12-21 11:17:16,031 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+2025-12-21 11:36:42,974 - graph_debugger - ERROR - [FAIL] Simple cypher test
+2025-12-21 11:36:42,974 - graph_debugger - ERROR - unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+2025-12-21 11:36:42,976 - graph_debugger - ERROR - [FAIL] Product node exists
+2025-12-21 11:36:42,976 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+2025-12-21 11:36:42,977 - graph_debugger - ERROR - [FAIL] SIMILAR edges count
+2025-12-21 11:36:42,977 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+2025-12-21 11:36:42,977 - graph_debugger - ERROR - [FAIL] FINAL recommendation query
+2025-12-21 11:36:42,978 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+2025-12-21 11:40:10,671 - graph_debugger - ERROR - [FAIL] Simple cypher test
+2025-12-21 11:40:10,671 - graph_debugger - ERROR - unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InternalError_: unhandled cypher(cstring) function call
+DETAIL:  amesie_graph
+
+2025-12-21 11:40:10,673 - graph_debugger - ERROR - [FAIL] Product node exists
+2025-12-21 11:40:10,673 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+2025-12-21 11:40:10,673 - graph_debugger - ERROR - [FAIL] SIMILAR edges count
+2025-12-21 11:40:10,673 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+2025-12-21 11:40:10,674 - graph_debugger - ERROR - [FAIL] FINAL recommendation query
+2025-12-21 11:40:10,674 - graph_debugger - ERROR - current transaction is aborted, commands ignored until end of transaction block
+Traceback (most recent call last):
+  File "/root/amesie_backend/services/graph_debugger.py", line 15, in step
+    cur.execute(sql)
+  File "/root/AmesieCommerce/backend/venv/lib/python3.12/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
