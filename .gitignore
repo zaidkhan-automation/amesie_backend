@@ -1,0 +1,87 @@
+# ================================
+# Python
+# ================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+venv/
+.env/
+.env.*
+.venv/
+pip-wheel-metadata/
+
+# ================================
+# Environment & Secrets
+# ================================
+.env
+.env.local
+.env.prod
+.env.dev
+*.env
+
+# ================================
+# Logs
+# ================================
+logs/
+*.log
+
+# ================================
+# Database / Runtime
+# ================================
+*.sqlite3
+*.db
+.pgpass
+
+# ================================
+# OS junk
+# ================================
+.DS_Store
+Thumbs.db
+
+# ================================
+# IDE / Editor
+# ================================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ================================
+# Build / Cache
+# ================================
+build/
+dist/
+.eggs/
+*.egg-info/
+.cache/
+.mypy_cache/
+.pytest_cache/
+
+# ================================
+# Coverage / Test
+# ================================
+.coverage
+htmlcov/
+coverage.xml
+
+# ================================
+# Docker
+# ================================
+docker-compose.override.yml
+
+# ================================
+# Temporary / Debug
+# ================================
+tmp/
+debug.log
+graph_debug.log
+
+# ================================
+# AGE / Graph Debug Artifacts
+# ================================
+graph_debug_output.json
+graph_test_dump.sql
