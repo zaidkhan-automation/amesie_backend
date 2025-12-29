@@ -1,13 +1,17 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 
-# Enums
+# ─────────────────────────────────────────────
+# ENUMS
+# ─────────────────────────────────────────────
+
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
     SELLER = "SELLER"
     CUSTOMER = "CUSTOMER"
+
 
 class NotificationType(str, Enum):
     ORDER_PLACED = "order_placed"
@@ -17,73 +21,96 @@ class NotificationType(str, Enum):
     ORDER_CANCELLED = "order_cancelled"
     PAYMENT_RECEIVED = "payment_received"
 
-# User schemas
+
+# ─────────────────────────────────────────────
+# USER SCHEMAS
+# ─────────────────────────────────────────────
+
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
     phone_number: Optional[str] = None
     role: UserRole = UserRole.CUSTOMER
 
+
 class UserCreate(UserBase):
     password: str
+
 
 class User(UserBase):
     id: int
     is_active: bool
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-# Token schemas
+
+# ─────────────────────────────────────────────
+# AUTH / TOKEN
+# ─────────────────────────────────────────────
+
 class Token(BaseModel):
     access_token: str
     token_type: str
 
+
 class TokenData(BaseModel):
     email: Optional[str] = None
 
-# Category schemas
+
+# ─────────────────────────────────────────────
+# CATEGORY
+# ─────────────────────────────────────────────
+
 class CategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
     image_url: Optional[str] = None
 
+
 class CategoryCreate(CategoryBase):
     pass
+
 
 class Category(CategoryBase):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-# Product schemas
+
+# ─────────────────────────────────────────────
+# PRODUCT IMAGES
+# ─────────────────────────────────────────────
+
 class ProductImageBase(BaseModel):
     image_url: str
     alt_text: Optional[str] = None
     display_order: int = 0
 
+
 class ProductImageCreate(ProductImageBase):
     pass
+
 
 class ProductImage(ProductImageBase):
     id: int
     product_id: int
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# PRODUCTS
+# ─────────────────────────────────────────────
 
 class ProductBase(BaseModel):
     name: str
     description: Optional[str] = None
     price: float
-    sku: str
-    image_url: Optional[str] = None  # Keep for backward compatibility
+    image_url: Optional[str] = None
     stock_quantity: int = 0
 
-    # Shipping information
     weight: Optional[float] = None
     length: Optional[float] = None
     width: Optional[float] = None
@@ -93,8 +120,10 @@ class ProductBase(BaseModel):
     category_id: int
     seller_id: Optional[int] = None
 
+
 class ProductCreate(ProductBase):
     images: Optional[List[ProductImageCreate]] = []
+
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
@@ -110,15 +139,19 @@ class ProductUpdate(BaseModel):
     category_id: Optional[int] = None
     is_active: Optional[bool] = None
 
-# Forward declaration for Seller
+
+# ─────────────────────────────────────────────
+# SELLER (BASIC)
+# ─────────────────────────────────────────────
+
 class SellerBasic(BaseModel):
     id: int
     store_name: str
     store_logo_url: Optional[str] = None
-    rating: float = 0.0
+    rating: Optional[float] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class Product(ProductBase):
     id: int
@@ -131,10 +164,13 @@ class Product(ProductBase):
     seller: Optional[SellerBasic] = None
     images: List[ProductImage] = []
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-# Address schemas
+
+# ─────────────────────────────────────────────
+# ADDRESS
+# ─────────────────────────────────────────────
+
 class AddressBase(BaseModel):
     full_name: str
     address_line1: str
@@ -145,23 +181,30 @@ class AddressBase(BaseModel):
     country: str
     is_default: bool = False
 
+
 class AddressCreate(AddressBase):
     pass
+
 
 class Address(AddressBase):
     id: int
     user_id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-# Cart schemas
+
+# ─────────────────────────────────────────────
+# CART
+# ─────────────────────────────────────────────
+
 class CartItemBase(BaseModel):
     product_id: int
     quantity: int
 
+
 class CartItemCreate(CartItemBase):
     pass
+
 
 class CartItem(CartItemBase):
     id: int
@@ -169,28 +212,35 @@ class CartItem(CartItemBase):
     created_at: datetime
     product: Product
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-# Order schemas
+
+# ─────────────────────────────────────────────
+# ORDERS
+# ─────────────────────────────────────────────
+
 class OrderItemBase(BaseModel):
     product_id: int
     quantity: int
     price: float
+
 
 class OrderItem(OrderItemBase):
     id: int
     order_id: int
     product: Product
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class OrderBase(BaseModel):
     shipping_address: str
+    location_id: int
+
 
 class OrderCreate(OrderBase):
     pass
+
 
 class Order(OrderBase):
     id: int
@@ -202,17 +252,22 @@ class Order(OrderBase):
     created_at: datetime
     order_items: List[OrderItem] = []
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-# Review schemas
+
+# ─────────────────────────────────────────────
+# REVIEWS
+# ─────────────────────────────────────────────
+
 class ReviewBase(BaseModel):
     product_id: int
     rating: int
     comment: Optional[str] = None
 
+
 class ReviewCreate(ReviewBase):
     pass
+
 
 class Review(ReviewBase):
     id: int
@@ -220,15 +275,20 @@ class Review(ReviewBase):
     created_at: datetime
     user: User
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-# Wishlist schemas
+
+# ─────────────────────────────────────────────
+# WISHLIST
+# ─────────────────────────────────────────────
+
 class WishlistItemBase(BaseModel):
     product_id: int
 
+
 class WishlistItemCreate(WishlistItemBase):
     pass
+
 
 class WishlistItem(WishlistItemBase):
     id: int
@@ -236,10 +296,13 @@ class WishlistItem(WishlistItemBase):
     created_at: datetime
     product: Product
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-# Seller schemas
+
+# ─────────────────────────────────────────────
+# SELLER (FULL)
+# ─────────────────────────────────────────────
+
 class SellerBase(BaseModel):
     store_name: str
     store_description: Optional[str] = None
@@ -247,29 +310,27 @@ class SellerBase(BaseModel):
     profile_picture_url: Optional[str] = None
     business_license: Optional[str] = None
 
-    # Address fields
     street_address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
     country: Optional[str] = None
     postal_code: Optional[str] = None
 
-    # Bank account details
     account_holder_name: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc_code: Optional[str] = None
 
-    # Tax information
     gst_number: Optional[str] = None
     pan_number: Optional[str] = None
     vat_number: Optional[str] = None
     tax_id: Optional[str] = None
 
-    # Keep for backward compatibility
     store_address: Optional[str] = None
+
 
 class SellerCreate(SellerBase):
     pass
+
 
 class SellerUpdate(BaseModel):
     store_name: Optional[str] = None
@@ -278,19 +339,16 @@ class SellerUpdate(BaseModel):
     profile_picture_url: Optional[str] = None
     business_license: Optional[str] = None
 
-    # Address fields
     street_address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
     country: Optional[str] = None
     postal_code: Optional[str] = None
 
-    # Bank account details
     account_holder_name: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc_code: Optional[str] = None
 
-    # Tax information
     gst_number: Optional[str] = None
     pan_number: Optional[str] = None
     vat_number: Optional[str] = None
@@ -298,34 +356,44 @@ class SellerUpdate(BaseModel):
 
     store_address: Optional[str] = None
 
+
 class Seller(SellerBase):
     id: int
     user_id: int
     is_verified: bool
     is_active: bool
     total_sales: float
-    rating: float
+    rating: Optional[float] = None
     created_at: datetime
     updated_at: datetime
     user: User
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-# Image upload schemas
+
+# ─────────────────────────────────────────────
+# IMAGE UPLOAD
+# ─────────────────────────────────────────────
+
 class ImageUploadResponse(BaseModel):
     image_url: str
     message: str
 
-# Notification schemas
+
+# ─────────────────────────────────────────────
+# NOTIFICATIONS
+# ─────────────────────────────────────────────
+
 class NotificationBase(BaseModel):
     title: str
     message: str
     notification_type: NotificationType
     order_id: Optional[int] = None
 
+
 class NotificationCreate(NotificationBase):
     user_id: int
+
 
 class Notification(NotificationBase):
     id: int
@@ -333,5 +401,4 @@ class Notification(NotificationBase):
     is_read: bool
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 import sys
 import os
@@ -13,172 +13,253 @@ from services.auth import get_current_user
 
 router = APIRouter()
 
+
+# ─────────────────────────────────────────────
+# INTERNAL SANITIZER (FIXES RESPONSE CRASHES)
+# ─────────────────────────────────────────────
+def _sanitize_cart_items(items: List[models.CartItem]):
+    """
+    Fix nullable fields that break Pydantic validation.
+    """
+    for item in items:
+        if item.product and item.product.seller:
+            if item.product.seller.rating is None:
+                item.product.seller.rating = 0.0
+    return items
+
+
+# ─────────────────────────────────────────────
+# GET CART ITEMS
+# ─────────────────────────────────────────────
 @router.get("/", response_model=List[schemas.CartItem])
 def get_cart_items(
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    cart_items = db.query(models.CartItem).filter(
-        models.CartItem.user_id == current_user.id
-    ).all()
-    return cart_items
+    cart_items = (
+        db.query(models.CartItem)
+        .options(
+            joinedload(models.CartItem.product)
+            .joinedload(models.Product.seller)
+        )
+        .filter(models.CartItem.user_id == current_user.id)
+        .all()
+    )
 
+    return _sanitize_cart_items(cart_items)
+
+
+# ─────────────────────────────────────────────
+# ADD TO CART
+# ─────────────────────────────────────────────
 @router.post("/items", response_model=schemas.CartItem)
 def add_to_cart(
     cart_item: schemas.CartItemCreate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    # Check if product exists
-    product = db.query(models.Product).filter(
-        models.Product.id == cart_item.product_id,
-        models.Product.is_active == True
-    ).first()
-    
+    product = (
+        db.query(models.Product)
+        .filter(
+            models.Product.id == cart_item.product_id,
+            models.Product.is_active.is_(True),
+            models.Product.is_deleted.is_(False),
+        )
+        .first()
+    )
+
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product not found"
+            detail="Product not found",
         )
-    
-    # Check if item already in cart
-    existing_item = db.query(models.CartItem).filter(
-        models.CartItem.user_id == current_user.id,
-        models.CartItem.product_id == cart_item.product_id
-    ).first()
-    
+
+    existing_item = (
+        db.query(models.CartItem)
+        .filter(
+            models.CartItem.user_id == current_user.id,
+            models.CartItem.product_id == cart_item.product_id,
+        )
+        .first()
+    )
+
     if existing_item:
-        # Update quantity
-        new_quantity = existing_item.quantity + cart_item.quantity
-        db.query(models.CartItem).filter(models.CartItem.id == existing_item.id).update({"quantity": new_quantity})
+        existing_item.quantity += cart_item.quantity
         db.commit()
         db.refresh(existing_item)
-        return existing_item
-    else:
-        # Create new cart item
-        db_cart_item = models.CartItem(
-            user_id=current_user.id,
-            product_id=cart_item.product_id,
-            quantity=cart_item.quantity
-        )
-        db.add(db_cart_item)
-        db.commit()
-        db.refresh(db_cart_item)
-        return db_cart_item
+        return _sanitize_cart_items([existing_item])[0]
 
+    db_cart_item = models.CartItem(
+        user_id=current_user.id,
+        product_id=cart_item.product_id,
+        quantity=cart_item.quantity,
+    )
+
+    db.add(db_cart_item)
+    db.commit()
+    db.refresh(db_cart_item)
+    return _sanitize_cart_items([db_cart_item])[0]
+
+
+# ─────────────────────────────────────────────
+# UPDATE CART ITEM
+# ─────────────────────────────────────────────
 @router.put("/items/{item_id}")
 def update_cart_item(
     item_id: int,
     quantity: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    cart_item = db.query(models.CartItem).filter(
-        models.CartItem.id == item_id,
-        models.CartItem.user_id == current_user.id
-    ).first()
-    
+    cart_item = (
+        db.query(models.CartItem)
+        .filter(
+            models.CartItem.id == item_id,
+            models.CartItem.user_id == current_user.id,
+        )
+        .first()
+    )
+
     if not cart_item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Cart item not found"
+            detail="Cart item not found",
         )
-    
+
     if quantity <= 0:
         db.delete(cart_item)
     else:
-        db.query(models.CartItem).filter(models.CartItem.id == item_id).update({"quantity": quantity})
-    
+        cart_item.quantity = quantity
+
     db.commit()
     return {"message": "Cart item updated successfully"}
 
+
+# ─────────────────────────────────────────────
+# REMOVE ITEM
+# ─────────────────────────────────────────────
 @router.delete("/items/{item_id}")
 def remove_from_cart(
     item_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    cart_item = db.query(models.CartItem).filter(
-        models.CartItem.id == item_id,
-        models.CartItem.user_id == current_user.id
-    ).first()
-    
+    cart_item = (
+        db.query(models.CartItem)
+        .filter(
+            models.CartItem.id == item_id,
+            models.CartItem.user_id == current_user.id,
+        )
+        .first()
+    )
+
     if not cart_item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Cart item not found"
+            detail="Cart item not found",
         )
-    
+
     db.delete(cart_item)
     db.commit()
     return {"message": "Item removed from cart"}
 
+
+# ─────────────────────────────────────────────
+# CLEAR CART
+# ─────────────────────────────────────────────
 @router.delete("/clear")
 def clear_cart(
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     db.query(models.CartItem).filter(
         models.CartItem.user_id == current_user.id
     ).delete()
+
     db.commit()
     return {"message": "Cart cleared successfully"}
 
-# Wishlist endpoints
+
+# ─────────────────────────────────────────────
+# WISHLIST
+# ─────────────────────────────────────────────
 @router.get("/wishlist", response_model=List[schemas.WishlistItem])
 def get_wishlist(
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    wishlist_items = db.query(models.WishlistItem).filter(
-        models.WishlistItem.user_id == current_user.id
-    ).all()
-    return wishlist_items
+    items = (
+        db.query(models.WishlistItem)
+        .options(
+            joinedload(models.WishlistItem.product)
+            .joinedload(models.Product.seller)
+        )
+        .filter(models.WishlistItem.user_id == current_user.id)
+        .all()
+    )
+
+    # sanitize seller.rating here too
+    for item in items:
+        if item.product and item.product.seller:
+            if item.product.seller.rating is None:
+                item.product.seller.rating = 0.0
+
+    return items
+
 
 @router.post("/wishlist", response_model=schemas.WishlistItem)
 def add_to_wishlist(
     wishlist_item: schemas.WishlistItemCreate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    # Check if already in wishlist
-    existing_item = db.query(models.WishlistItem).filter(
-        models.WishlistItem.user_id == current_user.id,
-        models.WishlistItem.product_id == wishlist_item.product_id
-    ).first()
-    
-    if existing_item:
+    exists = (
+        db.query(models.WishlistItem)
+        .filter(
+            models.WishlistItem.user_id == current_user.id,
+            models.WishlistItem.product_id == wishlist_item.product_id,
+        )
+        .first()
+    )
+
+    if exists:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Product already in wishlist"
+            detail="Product already in wishlist",
         )
-    
-    db_wishlist_item = models.WishlistItem(
+
+    item = models.WishlistItem(
         user_id=current_user.id,
-        product_id=wishlist_item.product_id
+        product_id=wishlist_item.product_id,
     )
-    db.add(db_wishlist_item)
+
+    db.add(item)
     db.commit()
-    db.refresh(db_wishlist_item)
-    return db_wishlist_item
+    db.refresh(item)
+    return item
+
 
 @router.delete("/wishlist/{item_id}")
 def remove_from_wishlist(
     item_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    wishlist_item = db.query(models.WishlistItem).filter(
-        models.WishlistItem.id == item_id,
-        models.WishlistItem.user_id == current_user.id
-    ).first()
-    
-    if not wishlist_item:
+    item = (
+        db.query(models.WishlistItem)
+        .filter(
+            models.WishlistItem.id == item_id,
+            models.WishlistItem.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Wishlist item not found"
+            detail="Wishlist item not found",
         )
-    
-    db.delete(wishlist_item)
+
+    db.delete(item)
     db.commit()
     return {"message": "Item removed from wishlist"}
