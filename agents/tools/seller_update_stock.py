@@ -1,18 +1,18 @@
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
+# agents/tools/seller_update_stock.py
 
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
 from db.models import Product
 
-
 def update_stock(
+    *,
     seller_id: int,
     product_id: int,
     stock: int,
     db: Session,
 ):
-    # basic sanity check
     if stock < 0:
-        raise HTTPException(status_code=400, detail="Stock cannot be negative")
+        raise HTTPException(400, "Stock cannot be negative")
 
     product = (
         db.query(Product)
@@ -25,10 +25,7 @@ def update_stock(
     )
 
     if not product:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found or not owned by seller",
-        )
+        raise HTTPException(404, "Product not found or not owned by seller")
 
     product.stock_quantity = stock
     db.commit()

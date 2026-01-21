@@ -1,9 +1,9 @@
 # agents/tools/seller_products.py
+
 from sqlalchemy.orm import Session
-from core.database import get_db
 from db import models
 
-def list_seller_products(seller_id: int, db: Session):
+def list_seller_products(*, seller_id: int, db: Session):
     products = (
         db.query(models.Product)
         .filter(

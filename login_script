@@ -1,0 +1,4 @@
+curl -X POST "http://76.13.17.48:8001/api/auth/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=zaidkhanx3009@gmail.com" \
+  -d "password=Reset@12345"

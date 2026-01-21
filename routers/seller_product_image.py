@@ -50,7 +50,6 @@ async def upload_product_image(
         seller_id=seller.id,
         product_id=product_id,
         raw_bytes=raw_bytes,
-        position=1,  # later this can be dynamic
     )
 
     return {

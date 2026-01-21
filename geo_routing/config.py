@@ -1,0 +1,2 @@
+SRID = 4326
+DEFAULT_ROUTING_ALGO = "dijkstra"

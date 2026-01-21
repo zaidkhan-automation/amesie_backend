@@ -8,7 +8,21 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.database import Base
+class OTPVerification(Base):
+    __tablename__ = "otp_verifications"
 
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, index=True, nullable=False)
+
+    otp_hash = Column(String, nullable=False)
+    purpose = Column(String, nullable=False, default="auth")
+
+    expires_at = Column(DateTime, nullable=False)
+    attempts = Column(Integer, default=0)
+    verified = Column(Boolean, default=False)
+
+    last_sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
 # User roles enum
 class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
@@ -98,17 +112,16 @@ class Product(Base):
 
 class ProductImage(Base):
     __tablename__ = "product_images"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"))
     image_url = Column(String, nullable=False)
-    alt_text = Column(String)  # Alternative text for accessibility
-    display_order = Column(Integer, default=0)  # Order for image carousel
+    alt_text = Column(String)
+    display_order = Column(Integer, default=0)
+    is_primary = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
-    
-    # Relationships
-    product = relationship("Product", back_populates="images")
 
+    product = relationship("Product", back_populates="images")
 class Address(Base):
     __tablename__ = "addresses"
     

@@ -1,30 +1,26 @@
 # agents/tools/seller_create_product.py
 
+import uuid
+import re
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from db import models
-import re
-import uuid
 
-DEFAULT_CATEGORY_ID = 1  # must exist in categories table
-
+DEFAULT_CATEGORY_ID = 1
 
 def _slugify(text: str) -> str:
     text = text.lower().strip()
-    text = re.sub(r"[^a-z0-9]+", "-", text)
-    return text.strip("-")
-
+    return re.sub(r"[^a-z0-9]+", "-", text).strip("-")
 
 def create_product(
     *,
     seller_id: int,
     name: str,
-    description: str | None = None,
+    description: str | None,
     price: float,
     stock: int,
     db: Session,
 ):
-    # 🔒 Category must exist
     category = (
         db.query(models.Category)
         .filter(models.Category.id == DEFAULT_CATEGORY_ID)
@@ -34,39 +30,29 @@ def create_product(
     if not category:
         raise HTTPException(400, "Category does not exist")
 
-    # 🔑 Collision-proof SKU
     slug = _slugify(name)
-    unique_suffix = uuid.uuid4().hex[:6].upper()
-    sku = f"AUTO-{seller_id}-{slug}-{unique_suffix}"
+    sku = f"AUTO-{seller_id}-{slug}-{uuid.uuid4().hex[:6].upper()}"
 
     product = models.Product(
+        seller_id=seller_id,
         name=name,
-        description=description,          # ✅ FIXED (was missing)
+        description=description or "",
         price=price,
         stock_quantity=stock,
-        seller_id=seller_id,
         category_id=category.id,
+        sku=sku,
         is_active=True,
         is_deleted=False,
-        sku=sku,
     )
 
     db.add(product)
-
-    try:
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise HTTPException(400, "Failed to create product")
-
+    db.commit()
     db.refresh(product)
 
     return {
         "product_id": product.id,
         "name": product.name,
-        "description": product.description,
         "price": product.price,
         "stock": product.stock_quantity,
-        "category_id": product.category_id,
         "sku": product.sku,
     }

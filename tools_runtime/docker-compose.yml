@@ -1,0 +1,11 @@
+services:
+  backend:
+    # already working, no breakage
+
+  tools:
+    build: .
+    command: uvicorn tools_runtime.tool_server:app --host 0.0.0.0 --port 9000
+    volumes:
+      - ./agents:/app/agents
+    ports:
+      - "9000:9000" 

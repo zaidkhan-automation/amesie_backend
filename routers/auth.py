@@ -1,15 +1,24 @@
-from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Form
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-import sys
-import os
+from datetime import datetime, timedelta
+import logging
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from core.database import get_db
 from db import models
+from db.models import OTPVerification
+
+from schemas.auth import SellerRegisterRequest, LoginRequest
+from schemas.otp import OTPVerifyRequest
 from schemas import schemas
+
+from services.otp_service import (
+    generate_otp,
+    hash_otp,
+    otp_expiry_time,
+    verify_otp,
+)
+from services.email_service import send_otp_email
 from services.auth import (
     authenticate_user,
     create_access_token,
@@ -19,140 +28,219 @@ from services.auth import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-# -------------------------
-# USER REGISTER
-# -------------------------
-@router.post("/register", response_model=schemas.User)
+# =====================================================
+# REGISTER USER → SEND OTP ONLY
+# =====================================================
+
+@router.post("/register")
 def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if db.query(models.User).filter(models.User.email == user.email).first():
         raise HTTPException(400, "Email already registered")
 
-    db_user = models.User(
-        email=user.email,
-        hashed_password=get_password_hash(user.password),
-        full_name=user.full_name,
-        phone_number=user.phone_number,
-        role=models.UserRole.CUSTOMER,
-        is_active=True,
+    now = datetime.utcnow()
+
+    otp_row = (
+        db.query(OTPVerification)
+        .filter(
+            OTPVerification.email == user.email,
+            OTPVerification.used.is_(False),
+        )
+        .order_by(OTPVerification.created_at.desc())
+        .first()
     )
 
-    db.add(db_user)
+    if otp_row and otp_row.expires_at > now:
+        raise HTTPException(202, "OTP already sent. Please check email.")
+
+    otp = generate_otp()
+
+    otp_row = OTPVerification(
+        email=user.email,
+        otp_hash=hash_otp(otp),
+        purpose="auth",
+        expires_at=otp_expiry_time(),
+        payload={
+            "type": "USER",
+            "data": user.dict(),
+        },
+        last_sent_at=now,
+    )
+
+    db.add(otp_row)
     db.commit()
-    db.refresh(db_user)
-    return db_user
 
+    try:
+        send_otp_email(user.email, otp)
+    except Exception as e:
+        logger.error(f"Email failed: {e}")
+        raise HTTPException(400, "Email not reachable or invalid")
 
-# -------------------------
-# SELLER REGISTER (AUTO APPROVED ✅)
-# -------------------------
+    return {"detail": "OTP sent. Please verify to complete registration."}
+
+# =====================================================
+# REGISTER SELLER → SEND OTP ONLY
+# =====================================================
+
 @router.post("/register/seller")
-def register_seller(
-    full_name: str = Form(...),
-    email: str = Form(...),
-    phone_number: str = Form(...),
-    password: str = Form(...),
-    store_name: str = Form(...),
-    store_description: str = Form(None),
-    store_address: str = Form(...),
-    business_license: str = Form(None),
-    gst_number: str = Form(None),
-    bank_account_number: str = Form(None),
-    bank_ifsc_code: str = Form(None),
-    db: Session = Depends(get_db),
-):
-    # Check existing user
-    if db.query(models.User).filter(models.User.email == email).first():
+def register_seller(payload: SellerRegisterRequest, db: Session = Depends(get_db)):
+    if db.query(models.User).filter(models.User.email == payload.email).first():
         raise HTTPException(400, "Email already registered")
 
-    # 1️⃣ Create USER
-    user = models.User(
-        email=email,
-        hashed_password=get_password_hash(password),
-        full_name=full_name,
-        phone_number=phone_number,
-        role=models.UserRole.SELLER,
-        is_active=True,
-    )
-    db.add(user)
-    db.flush()  # ensures user.id is available
+    now = datetime.utcnow()
 
-    # 2️⃣ Create SELLER (AUTO APPROVED)
-    seller = models.Seller(
-        user_id=user.id,
-        store_name=store_name,
-        store_description=store_description,
-        store_address=store_address,
-        business_license=business_license,
-        gst_number=gst_number,
-        bank_account_number=bank_account_number,
-        bank_ifsc_code=bank_ifsc_code,
-
-        # 🔥 REAL AUTO APPROVAL (matches DB trigger)
-        is_verified=True,
-        is_active=True,
+    otp_row = (
+        db.query(OTPVerification)
+        .filter(
+            OTPVerification.email == payload.email,
+            OTPVerification.used.is_(False),
+        )
+        .order_by(OTPVerification.created_at.desc())
+        .first()
     )
 
-    db.add(seller)
+    if otp_row and otp_row.expires_at > now:
+        raise HTTPException(202, "OTP already sent. Please check email.")
+
+    otp = generate_otp()
+
+    otp_row = OTPVerification(
+        email=payload.email,
+        otp_hash=hash_otp(otp),
+        purpose="auth",
+        expires_at=otp_expiry_time(),
+        payload={
+            "type": "SELLER",
+            "data": payload.dict(),
+        },
+        last_sent_at=now,
+    )
+
+    db.add(otp_row)
     db.commit()
-    db.refresh(seller)
 
-    return {
-        "message": "Seller registered and auto-approved",
-        "seller_id": seller.id,
-    }
+    try:
+        send_otp_email(payload.email, otp)
+    except Exception as e:
+        logger.error(f"Email failed: {e}")
+        raise HTTPException(400, "Email not reachable or invalid")
 
+    return {"detail": "OTP sent. Please verify to complete seller registration."}
 
-# -------------------------
-# ADMIN REGISTER
-# -------------------------
-@router.post("/register/admin", response_model=schemas.User)
-def register_admin(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    if db.query(models.User).filter(models.User.email == user.email).first():
-        raise HTTPException(400, "Email already registered")
+# =====================================================
+# VERIFY OTP → FINALIZE REGISTRATION
+# =====================================================
 
-    db_user = models.User(
-        email=user.email,
-        hashed_password=get_password_hash(user.password),
-        full_name=user.full_name,
-        phone_number=user.phone_number,
-        role=models.UserRole.ADMIN,
-        is_active=True,
+@router.post("/verify-otp")
+def verify_otp_endpoint(payload: OTPVerifyRequest, db: Session = Depends(get_db)):
+    otp_row = (
+        db.query(OTPVerification)
+        .filter(
+            OTPVerification.email == payload.email,
+            OTPVerification.used.is_(False),
+        )
+        .order_by(OTPVerification.created_at.desc())
+        .with_for_update()
+        .first()
     )
 
-    db.add(db_user)
+    if not otp_row:
+        raise HTTPException(400, "Invalid or expired OTP")
+
+    verify_otp(
+        db=db,
+        email=payload.email,
+        otp=payload.otp,
+        purpose=payload.purpose,
+    )
+
+    data = otp_row.payload
+    if not data:
+        raise HTTPException(500, "Registration payload missing")
+
+    if data["type"] == "USER":
+        d = data["data"]
+        user = models.User(
+            email=d["email"],
+            hashed_password=get_password_hash(d["password"]),
+            full_name=d["full_name"],
+            phone_number=d["phone_number"],
+            role=models.UserRole.CUSTOMER,
+            is_active=True,
+        )
+        db.add(user)
+
+    elif data["type"] == "SELLER":
+        d = data["data"]
+        user = models.User(
+            email=d["email"],
+            hashed_password=get_password_hash(d["password"]),
+            full_name=d["full_name"],
+            phone_number=d["phone_number"],
+            role=models.UserRole.SELLER,
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+
+        seller = models.Seller(
+            user_id=user.id,
+            store_name=d["store_name"],
+            store_description=d.get("store_description"),
+            store_address=d.get("store_address"),
+            gst_number=d.get("gst_number"),
+            bank_account_number=d.get("bank_account_number"),
+            bank_ifsc_code=d.get("bank_ifsc_code"),
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(seller)
+
+    otp_row.used = True
     db.commit()
-    db.refresh(db_user)
-    return db_user
 
+    return {"message": "Registration completed successfully"}
 
-# -------------------------
+# =====================================================
 # LOGIN
-# -------------------------
+# =====================================================
+
 @router.post("/login", response_model=schemas.Token)
-def login_user(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db),
-):
-    user = authenticate_user(form_data.username, form_data.password, db)
+def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = authenticate_user(payload.email, payload.password, db)
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
+    token_data = {
+        "sub": user.email,
+        "role": user.role.value,
+    }
+
+    if user.role == models.UserRole.SELLER:
+        seller = (
+            db.query(models.Seller)
+            .filter(models.Seller.user_id == user.id)
+            .first()
+        )
+        if seller:
+            token_data["seller_id"] = seller.id
+
     token = create_access_token(
-        data={"sub": user.email},
+        data=token_data,
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
     return {"access_token": token, "token_type": "bearer"}
 
-
-# -------------------------
+# =====================================================
 # ME
-# -------------------------
+# =====================================================
+
 @router.get("/me", response_model=schemas.User)
 def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user

@@ -1,9 +1,11 @@
-from fastapi import HTTPException
+# agents/tools/seller_update_price.py
+
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+from fastapi import HTTPException
 from db.models import Product
 
 def update_price(
+    *,
     seller_id: int,
     product_id: int,
     new_price: float,
@@ -14,7 +16,7 @@ def update_price(
         .filter(
             Product.id == product_id,
             Product.seller_id == seller_id,
-            Product.is_deleted == False,
+            Product.is_deleted.is_(False),
         )
         .first()
     )

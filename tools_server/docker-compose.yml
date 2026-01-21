@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  tools_postgres:
+    image: postgres:15
+    container_name: tools_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - tools_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"   # host pe free port
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  tools_server:
+    build: .
+    container_name: tools_server
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      tools_postgres:
+        condition: service_healthy
+    ports:
+      - "9000:9000"
+
+volumes:
+  tools_pgdata:

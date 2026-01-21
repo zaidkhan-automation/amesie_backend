@@ -3,7 +3,10 @@
 import os
 from typing import Tuple
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
+from core.database import SessionLocal
+from db import models
 from utils.image_processor import process_image_to_webp
 
 # -------------------------
@@ -23,76 +26,103 @@ def handle_product_image_upload(
     seller_id: int,
     product_id: int,
     raw_bytes: bytes,
-    position: int,
 ) -> Tuple[str, int]:
     """
-    Validates, converts, compresses, and stores a product image as WEBP.
+    Validates, converts, compresses, stores image,
+    AND creates DB record with correct ordering + primary logic.
 
-    IMPORTANT:
-    - Caller MUST verify seller owns product_id before calling this.
-    - This service only handles image processing + storage.
-
-    Returns:
-        (image_path, final_size_bytes)
+    Rules:
+    - First image → primary = True, order = 1
+    - Next images → primary = False, order = max + 1
     """
 
-    # 1️⃣ Upload size guard (pre-conversion)
-    if len(raw_bytes) > MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail="Image too large. Max upload size is 2MB.",
-        )
+    db: Session = SessionLocal()
 
-    # 2️⃣ Convert → WEBP
     try:
-        webp_bytes, final_size, mime = process_image_to_webp(raw_bytes)
-    except Exception:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid image file.",
+        # 🔒 Ensure product ownership
+        product = (
+            db.query(models.Product)
+            .filter(
+                models.Product.id == product_id,
+                models.Product.seller_id == seller_id,
+                models.Product.is_deleted.is_(False),
+            )
+            .first()
         )
 
-    # 3️⃣ Enforce WEBP + compressed size
-    if mime != "image/webp":
-        raise HTTPException(
-            status_code=400,
-            detail="Image conversion failed.",
+        if not product:
+            raise HTTPException(404, "Invalid product or seller")
+
+        # 📊 Existing images
+        last_image = (
+            db.query(models.ProductImage)
+            .filter(models.ProductImage.product_id == product_id)
+            .order_by(models.ProductImage.display_order.desc())
+            .first()
         )
 
-    if final_size > MAX_FINAL_WEBP_BYTES:
-        raise HTTPException(
-            status_code=400,
-            detail="Compressed image exceeds 500KB limit.",
+        if last_image:
+            display_order = last_image.display_order + 1
+            is_primary = False
+        else:
+            display_order = 1
+            is_primary = True
+
+        # 1️⃣ Upload size guard
+        if len(raw_bytes) > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, "Image too large. Max 2MB.")
+
+        # 2️⃣ Convert → WEBP
+        try:
+            webp_bytes, final_size, mime = process_image_to_webp(raw_bytes)
+        except Exception:
+            raise HTTPException(400, "Invalid image file.")
+
+        if mime != "image/webp":
+            raise HTTPException(400, "Image conversion failed.")
+
+        if final_size > MAX_FINAL_WEBP_BYTES:
+            raise HTTPException(400, "Compressed image exceeds 500KB.")
+
+        # 3️⃣ Storage path
+        folder_path = os.path.normpath(
+            os.path.join(
+                BASE_STORAGE_PATH,
+                f"seller_{seller_id}",
+                f"product_{product_id}",
+            )
         )
+        os.makedirs(folder_path, exist_ok=True)
 
-    # 4️⃣ Build safe storage path
-    folder_path = os.path.normpath(
-        os.path.join(
-            BASE_STORAGE_PATH,
-            f"seller_{seller_id}",
-            f"product_{product_id}",
-        )
-    )
+        filename = f"{display_order}.webp"
+        final_path = os.path.join(folder_path, filename)
+        temp_path = final_path + ".tmp"
 
-    os.makedirs(folder_path, exist_ok=True)
-
-    filename = f"{position}.webp"
-    final_path = os.path.join(folder_path, filename)
-    temp_path = final_path + ".tmp"
-
-    # 5️⃣ Atomic write (temp → rename)
-    try:
+        # 4️⃣ Atomic write
         with open(temp_path, "wb") as f:
             f.write(webp_bytes)
-
         os.replace(temp_path, final_path)
-    except Exception:
-        # Clean up temp file if anything fails
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to store image.",
+
+        # 5️⃣ DB record
+        image = models.ProductImage(
+            product_id=product_id,
+            image_url=final_path,
+            display_order=display_order,
+            is_primary=is_primary,
         )
 
-    return final_path, final_size
+        db.add(image)
+        db.commit()
+
+        return final_path, final_size
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(500, "Image upload failed")
+
+    finally:
+        db.close()

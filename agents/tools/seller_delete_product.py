@@ -1,9 +1,12 @@
-from fastapi import HTTPException
+# agents/tools/seller_delete_product.py
+
 from sqlalchemy.orm import Session
-from db.models import Product
+from fastapi import HTTPException
 from datetime import datetime
+from db.models import Product
 
 def delete_product(
+    *,
     seller_id: int,
     product_id: int,
     db: Session,
@@ -13,7 +16,7 @@ def delete_product(
         .filter(
             Product.id == product_id,
             Product.seller_id == seller_id,
-            Product.is_deleted == False,
+            Product.is_deleted.is_(False),
         )
         .first()
     )
@@ -22,6 +25,7 @@ def delete_product(
         raise HTTPException(404, "Product not found or not owned by seller")
 
     product.is_deleted = True
+    product.is_active = False
     product.deleted_at = datetime.utcnow()
     db.commit()
 
