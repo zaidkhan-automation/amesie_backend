@@ -11,12 +11,9 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from db import models
 
-# ─────────────────────────────────────────────
-# SECURITY SETTINGS (SINGLE SOURCE OF TRUTH)
-# ─────────────────────────────────────────────
 JWT_SECRET = os.environ.get("JWT_SECRET")
-if not JWT_SECRET:
-    raise RuntimeError("JWT_SECRET not set in environment")
+if not JWT_SECRET or len(JWT_SECRET) < 32:
+    raise RuntimeError("JWT_SECRET must be set and >= 32 chars")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -24,135 +21,60 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 security = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# ─────────────────────────────────────────────
-# PASSWORD NORMALIZATION (bcrypt hard limit fix)
-# ─────────────────────────────────────────────
+
 def _normalize_password(password: str) -> str:
-    """
-    bcrypt supports max 72 BYTES.
-    This avoids silent verification failures.
-    """
-    return password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+    encoded = password.encode("utf-8")
+    while len(encoded) > 72:
+        password = password[:-1]
+        encoded = password.encode("utf-8")
+    return password
+
 
 def get_password_hash(password: str) -> str:
-    password = _normalize_password(password)
-    return pwd_context.hash(password)
+    return pwd_context.hash(_normalize_password(password))
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    plain_password = _normalize_password(plain_password)
-    return pwd_context.verify(plain_password, hashed_password)
+    return pwd_context.verify(_normalize_password(plain_password), hashed_password)
 
-# ─────────────────────────────────────────────
-# JWT CREATION
-# ─────────────────────────────────────────────
-def create_access_token(
-    data: dict,
-    expires_delta: Optional[timedelta] = None
-):
-    to_encode = data.copy()
 
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     expire = datetime.utcnow() + (
-        expires_delta
-        if expires_delta
-        else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
+    payload = {**data, "exp": expire}
+    return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
 
-    to_encode.update({"exp": expire})
 
-    return jwt.encode(
-        to_encode,
-        JWT_SECRET,
-        algorithm=ALGORITHM,
-    )
-
-# ─────────────────────────────────────────────
-# JWT VERIFICATION (HTTP)
-# ─────────────────────────────────────────────
 def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
-    token = credentials.credentials
-
     try:
         payload = jwt.decode(
-            token,
+            credentials.credentials,
             JWT_SECRET,
             algorithms=[ALGORITHM],
         )
-        email: str | None = payload.get("sub")
+        email = payload.get("sub")
         if not email:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload",
-            )
+            raise HTTPException(401, "Invalid token payload")
         return email
-
     except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(401, "Invalid or expired token")
 
-# ─────────────────────────────────────────────
-# CURRENT USER (HTTP)
-# ─────────────────────────────────────────────
+
 def get_current_user(
     email: str = Depends(verify_token),
     db: Session = Depends(get_db),
 ):
-    user = (
-        db.query(models.User)
-        .filter(models.User.email == email)
-        .first()
-    )
-
+    user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-
+        raise HTTPException(401, "User not found")
     return user
 
-# ─────────────────────────────────────────────
-# LOGIN AUTH
-# ─────────────────────────────────────────────
-def authenticate_user(
-    email: str,
-    password: str,
-    db: Session,
-):
-    user = (
-        db.query(models.User)
-        .filter(models.User.email == email)
-        .first()
-    )
 
-    if not user:
+def authenticate_user(email: str, password: str, db: Session):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user or not verify_password(password, user.hashed_password):
         return None
-
-    if not verify_password(password, user.hashed_password):
-        return None
-
     return user
-
-# ─────────────────────────────────────────────
-# RAW JWT DECODE (WebSocket / Agent)
-# ─────────────────────────────────────────────
-def decode_token_raw(token: str) -> dict:
-    """
-    Decode JWT without FastAPI Depends.
-    Used by WebSocket / agent auth.
-    """
-    try:
-        return jwt.decode(
-            token,
-            JWT_SECRET,
-            algorithms=[ALGORITHM],
-        )
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-        )

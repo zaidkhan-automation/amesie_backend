@@ -1,112 +1,99 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-import os
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.exc import IntegrityError
 import uuid
 import re
-from datetime import datetime
 
 from core.database import get_db
-from core.redis import redis_client
-from core.logging_config import get_logger
-
 from db import models
 from schemas import schemas
 from services.auth import get_current_user
-from services.notification_service import notify_order_status_update
+from services.product_vector_ingest import index_product
 
 router = APIRouter()
-logger = get_logger("seller")
-
-# ─────────────────────────────────────────────
-# FILE UPLOAD CONFIG
-# ─────────────────────────────────────────────
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-MAX_FILE_SIZE = 5 * 1024 * 1024
-UPLOAD_ROOT = "static/uploads"
-
-PROFILE_DIR = f"{UPLOAD_ROOT}/profile_pictures"
-PRODUCT_DIR = f"{UPLOAD_ROOT}/product_images"
-
-os.makedirs(PROFILE_DIR, exist_ok=True)
-os.makedirs(PRODUCT_DIR, exist_ok=True)
 
 
-async def save_upload_file(file: UploadFile, folder: str) -> str:
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(413, "File too large")
-
-    ext = os.path.splitext(file.filename or "")[1].lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(400, "Invalid file type")
-
-    name = f"{uuid.uuid4()}{ext}"
-    path = f"{folder}/{name}"
-
-    with open(path, "wb") as f:
-        f.write(content)
-
-    return f"/{path}"
-
-
-# ─────────────────────────────────────────────
-# AUTH
-# ─────────────────────────────────────────────
 def get_current_seller(
     user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if user.role != models.UserRole.SELLER:
-        raise HTTPException(403, "Seller access required")
+        raise HTTPException(status_code=403, detail="Seller access required")
 
-    seller = db.query(models.Seller).filter_by(user_id=user.id).first()
+    seller = (
+        db.query(models.Seller)
+        .filter(models.Seller.user_id == user.id)
+        .first()
+    )
+
     if not seller:
-        raise HTTPException(404, "Seller profile not found")
+        raise HTTPException(status_code=404, detail="Seller profile not found")
 
     return seller
 
 
-# ─────────────────────────────────────────────
-# PRODUCTS
-# ─────────────────────────────────────────────
+@router.get("/products")
+def get_my_products(
+    skip: int = 0,
+    limit: int = 20,
+    is_active: bool | None = None,
+    seller: models.Seller = Depends(get_current_seller),
+    db: Session = Depends(get_db),
+):
+    query = (
+        db.query(models.Product)
+        .options(selectinload(models.Product.images))
+        .filter(
+            models.Product.seller_id == seller.id,
+            models.Product.is_deleted.is_(False),
+        )
+    )
+
+    if is_active is not None:
+        query = query.filter(models.Product.is_active == is_active)
+
+    return query.offset(skip).limit(limit).all()
+
+
 @router.post("/products", response_model=schemas.Product)
 def create_product(
     payload: schemas.ProductCreate,
     seller: models.Seller = Depends(get_current_seller),
     db: Session = Depends(get_db),
 ):
-    # 🔒 SKU MUST BE GENERATED SERVER-SIDE
-    def _slugify(text: str) -> str:
-        text = text.lower().strip()
-        text = re.sub(r"[^a-z0-9]+", "-", text)
-        return text.strip("-")
+    category = (
+        db.query(models.Category)
+        .filter(models.Category.name.ilike(payload.category.strip()))
+        .first()
+    )
 
-    slug = _slugify(payload.name)
+    if not category:
+        raise HTTPException(status_code=400, detail="Invalid category")
+
+    slug = re.sub(r"[^a-z0-9]+", "-", payload.name.lower()).strip("-")
     sku = f"AUTO-{seller.id}-{slug}-{uuid.uuid4().hex[:6].upper()}"
 
-    # remove forbidden fields from payload
-    data = payload.dict(exclude={"seller_id", "sku"})
-
     product = models.Product(
-        **data,
-        sku=sku,               # ✅ FIXED
-        seller_id=seller.id,   # single source of truth
+        name=payload.name,
+        description=payload.description,
+        price=payload.price,
+        stock_quantity=payload.stock_quantity,
+        category_id=category.id,
+        sku=sku,
+        seller_id=seller.id,
         is_active=True,
         is_deleted=False,
     )
 
-    db.add(product)
-    db.commit()
-    db.refresh(product)
-
-    # 🔥 CACHE INVALIDATION (UNCHANGED)
     try:
-        for key in redis_client.scan_iter("products:list*"):
-            redis_client.delete(key)
-    except Exception:
-        pass
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+        index_product(db, product.id)
+
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="SKU collision")
 
     return product
 
@@ -118,26 +105,40 @@ def update_product(
     seller: models.Seller = Depends(get_current_seller),
     db: Session = Depends(get_db),
 ):
-    product = db.query(models.Product).filter(
-        models.Product.id == product_id,
-        models.Product.seller_id == seller.id,
-        models.Product.is_deleted.is_(False),
-    ).first()
+    product = (
+        db.query(models.Product)
+        .filter(
+            models.Product.id == product_id,
+            models.Product.seller_id == seller.id,
+            models.Product.is_deleted.is_(False),
+        )
+        .first()
+    )
 
     if not product:
-        raise HTTPException(404, "Product not found")
+        raise HTTPException(status_code=404, detail="Product not found")
 
-    for k, v in payload.dict(exclude_unset=True).items():
-        setattr(product, k, v)
+    update_data = payload.dict(exclude_unset=True)
+
+    if "category" in update_data:
+        category = (
+            db.query(models.Category)
+            .filter(models.Category.name.ilike(update_data["category"].strip()))
+            .first()
+        )
+
+        if not category:
+            raise HTTPException(status_code=400, detail="Invalid category")
+
+        product.category_id = category.id
+        del update_data["category"]
+
+    for field, value in update_data.items():
+        setattr(product, field, value)
 
     db.commit()
     db.refresh(product)
-
-    try:
-        redis_client.delete(f"product:{product_id}")
-        redis_client.delete_pattern("products:list:*")
-    except Exception as e:
-        logger.warning(f"Redis invalidate failed: {e}")
+    index_product(db, product.id)
 
     return product
 
@@ -148,24 +149,23 @@ def delete_product(
     seller: models.Seller = Depends(get_current_seller),
     db: Session = Depends(get_db),
 ):
-    product = db.query(models.Product).filter_by(
-        id=product_id,
-        seller_id=seller.id,
-    ).first()
+    product = (
+        db.query(models.Product)
+        .filter(
+            models.Product.id == product_id,
+            models.Product.seller_id == seller.id,
+            models.Product.is_deleted.is_(False),
+        )
+        .first()
+    )
 
     if not product:
-        raise HTTPException(404, "Product not found")
+        raise HTTPException(status_code=404, detail="Product not found")
 
     product.is_deleted = True
     product.is_active = False
-    product.deleted_at = datetime.utcnow()
-
     db.commit()
 
-    try:
-        redis_client.delete(f"product:{product_id}")
-        redis_client.delete_pattern("products:list:*")
-    except Exception as e:
-        logger.warning(f"Redis invalidate failed: {e}")
+    index_product(db, product.id)
 
-    return {"message": "Product deleted"}
+    return {"message": "Product deleted successfully"}

@@ -1,45 +1,27 @@
-# services/product_image_service.py
-
 import os
 from typing import Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-
+from db.models.product_image import ProductImage
 from core.database import SessionLocal
 from db import models
 from utils.image_processor import process_image_to_webp
 
-# -------------------------
-# CONFIG
-# -------------------------
-MAX_UPLOAD_BYTES = 2 * 1024 * 1024      # 2MB upload limit
-MAX_FINAL_WEBP_BYTES = 500 * 1024       # 500KB after compression
-
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024
+MAX_FINAL_WEBP_BYTES = 500 * 1024
 BASE_STORAGE_PATH = "storage/products"
 
 
-# -------------------------
-# CORE SERVICE
-# -------------------------
 def handle_product_image_upload(
     *,
     seller_id: int,
     product_id: int,
     raw_bytes: bytes,
 ) -> Tuple[str, int]:
-    """
-    Validates, converts, compresses, stores image,
-    AND creates DB record with correct ordering + primary logic.
-
-    Rules:
-    - First image → primary = True, order = 1
-    - Next images → primary = False, order = max + 1
-    """
 
     db: Session = SessionLocal()
 
     try:
-        # 🔒 Ensure product ownership
         product = (
             db.query(models.Product)
             .filter(
@@ -53,7 +35,6 @@ def handle_product_image_upload(
         if not product:
             raise HTTPException(404, "Invalid product or seller")
 
-        # 📊 Existing images
         last_image = (
             db.query(models.ProductImage)
             .filter(models.ProductImage.product_id == product_id)
@@ -68,45 +49,37 @@ def handle_product_image_upload(
             display_order = 1
             is_primary = True
 
-        # 1️⃣ Upload size guard
         if len(raw_bytes) > MAX_UPLOAD_BYTES:
-            raise HTTPException(413, "Image too large. Max 2MB.")
+            raise HTTPException(413, "Image too large (max 2MB)")
 
-        # 2️⃣ Convert → WEBP
-        try:
-            webp_bytes, final_size, mime = process_image_to_webp(raw_bytes)
-        except Exception:
-            raise HTTPException(400, "Invalid image file.")
+        webp_bytes, final_size, mime = process_image_to_webp(raw_bytes)
 
         if mime != "image/webp":
-            raise HTTPException(400, "Image conversion failed.")
+            raise HTTPException(400, "Invalid image format")
 
         if final_size > MAX_FINAL_WEBP_BYTES:
-            raise HTTPException(400, "Compressed image exceeds 500KB.")
+            raise HTTPException(400, "Compressed image exceeds 500KB")
 
-        # 3️⃣ Storage path
-        folder_path = os.path.normpath(
-            os.path.join(
-                BASE_STORAGE_PATH,
-                f"seller_{seller_id}",
-                f"product_{product_id}",
-            )
+        folder_path = os.path.join(
+            BASE_STORAGE_PATH,
+            f"seller_{seller_id}",
+            f"product_{product_id}",
         )
         os.makedirs(folder_path, exist_ok=True)
 
         filename = f"{display_order}.webp"
-        final_path = os.path.join(folder_path, filename)
-        temp_path = final_path + ".tmp"
+        disk_path = os.path.join(folder_path, filename)
 
-        # 4️⃣ Atomic write
-        with open(temp_path, "wb") as f:
+        tmp_path = disk_path + ".tmp"
+        with open(tmp_path, "wb") as f:
             f.write(webp_bytes)
-        os.replace(temp_path, final_path)
+        os.replace(tmp_path, disk_path)
 
-        # 5️⃣ DB record
+        public_url = "/" + disk_path.replace("\\", "/")
+
         image = models.ProductImage(
             product_id=product_id,
-            image_url=final_path,
+            image_url=public_url,
             display_order=display_order,
             is_primary=is_primary,
         )
@@ -114,15 +87,15 @@ def handle_product_image_upload(
         db.add(image)
         db.commit()
 
-        return final_path, final_size
+        return public_url, final_size
 
     except HTTPException:
         db.rollback()
         raise
 
-    except Exception:
+    except Exception as e:
         db.rollback()
-        raise HTTPException(500, "Image upload failed")
+        raise HTTPException(500, f"Image upload failed: {str(e)}")
 
     finally:
         db.close()

@@ -33,15 +33,8 @@ class Product(Base):
 
     created_at = Column(DateTime, server_default=func.now())
 
-    # relationships
     category = relationship("Category", back_populates="products")
     seller = relationship("Seller", back_populates="products")
-
-    cart_items = relationship(
-        "CartItem",
-        back_populates="product",
-        cascade="all, delete-orphan",
-    )
 
     images = relationship(
         "ProductImage",
