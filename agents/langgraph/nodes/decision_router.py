@@ -1,0 +1,34 @@
+import json
+from agents.langgraph.state import AgentState
+
+
+def decision_router(state: AgentState) -> AgentState:
+
+    thinking = state.get("thinking")
+
+    if not thinking:
+        return {**state, "route": "chat"}
+
+    try:
+        data = json.loads(thinking)
+    except Exception:
+        return {**state, "route": "chat"}
+
+    intent = data.get("intent")
+
+    if intent == "meta":
+        return {**state, "route": "meta"}
+
+    if intent == "calculator":
+        return {**state, "route": "calculator"}
+
+    if intent in (
+        "create_product",
+        "update_price",
+        "update_stock",
+        "delete_product",
+        "list_products",
+    ):
+        return {**state, "route": "tool"}
+
+    return {**state, "route": "chat"}

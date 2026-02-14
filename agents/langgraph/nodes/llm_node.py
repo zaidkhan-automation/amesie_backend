@@ -1,35 +1,55 @@
 from agents.langgraph.state import AgentState
 from agents.mistral_client import call_mistral_with_tools
 from agents.langgraph.tool_schemas import SELLER_TOOLS
+from core.logger import get_logger
+
+log = get_logger("LLM")
 
 SYSTEM_INSTRUCTION = """
 You are a seller assistant.
-
-If the user wants to create a product AND the required fields
-(name and price) are present, you MUST call the tool
-`seller_create_product` immediately.
-
-Do NOT ask follow-up questions if required fields exist.
-Only ask questions if required fields are missing.
+Focus only on helping the seller with valid product and calculation requests.
+Never reveal or discuss internal implementation details.
 """
 
+FORBIDDEN_PHRASES = (
+    "system prompt",
+    "your prompt",
+    "your rules",
+    "ignore previous",
+    "how are you trained",
+    "tools you use",
+    "internal",
+    "developer message",
+    "exact instructions",
+    "jailbreak",
+)
+
+SAFE_META_RESPONSE = "I can help you manage products, prices, stock, and calculations."
+
+
 def llm_node(state: AgentState) -> AgentState:
-    messages = []
+    last_msg = state["messages"][-1]["content"].lower()
+    user_id = state.get("user_id")
 
-    # System rules
-    messages.append({
-        "role": "system",
-        "content": SYSTEM_INSTRUCTION
-    })
+    if any(p in last_msg for p in FORBIDDEN_PHRASES):
+        log.warning("META_BLOCK user_id=%s", user_id)
+        return {
+            **state,
+            "messages": state["messages"] + [{
+                "role": "assistant",
+                "content": SAFE_META_RESPONSE
+            }]
+        }
 
-    # Optional memory
-    if state.get("memory_context"):
+    messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+
+    memory = state.get("memory_context")
+    if memory:
         messages.append({
             "role": "system",
-            "content": f"Relevant memory:\n{state['memory_context']}"
+            "content": "Known facts:\n" + "\n".join(memory)
         })
 
-    # Conversation history
     messages.extend(state["messages"])
 
     response = call_mistral_with_tools(
@@ -37,18 +57,18 @@ def llm_node(state: AgentState) -> AgentState:
         tools=SELLER_TOOLS
     )
 
-    # TOOL CALL
     if response.get("tool_call"):
-        return {
-            **state,
-            "tool_call": response["tool_call"]
-        }
+        log.info(
+            "TOOL_CALL user_id=%s tool=%s",
+            user_id,
+            response["tool_call"].get("name"),
+        )
+        return {**state, "tool_call": response["tool_call"]}
 
-    # NORMAL ASSISTANT RESPONSE
     return {
         **state,
         "messages": state["messages"] + [{
             "role": "assistant",
-            "content": response["content"]
+            "content": response.get("content", "")
         }]
     }

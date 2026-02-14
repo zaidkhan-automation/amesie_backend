@@ -1,16 +1,32 @@
-# agents/langgraph/nodes/tool_executor.py
-
 from agents.langgraph.state import AgentState
-from agents.langgraph.tools import seller_create_product_tool
+from agents.langgraph.tools import (
+    seller_create_product_tool,
+    seller_update_price_tool,
+    seller_update_stock_tool,
+    seller_delete_product_tool,
+    seller_list_products_tool,
+    calculator_tool,
+)
+from core.logger import get_logger
 
-# Tool registry
+log = get_logger("TOOLS")
+
 TOOL_REGISTRY = {
     "seller_create_product": seller_create_product_tool,
+    "seller_update_price": seller_update_price_tool,
+    "seller_update_stock": seller_update_stock_tool,
+    "seller_delete_product": seller_delete_product_tool,
+    "seller_list_products": seller_list_products_tool,
+    "calculator": calculator_tool,
 }
 
-# Required fields per tool
 REQUIRED_FIELDS = {
     "seller_create_product": ["name", "price"],
+    "seller_update_price": ["product_id", "new_price"],
+    "seller_update_stock": ["product_id", "stock_quantity"],
+    "seller_delete_product": ["product_id"],
+    "seller_list_products": [],
+    "calculator": ["expression"],
 }
 
 def tool_executor(state: AgentState) -> AgentState:
@@ -18,64 +34,60 @@ def tool_executor(state: AgentState) -> AgentState:
     if not tool_call:
         return state
 
-    tool_name = tool_call.get("name")
+    tool = tool_call.get("name")
+    args = tool_call.get("arguments") or {}
+    user_id = state.get("user_id")
 
-    if tool_name not in TOOL_REGISTRY:
-        return {
-            **state,
-            "messages": state["messages"] + [{
-                "role": "assistant",
-                "content": f"Unknown tool requested: {tool_name}"
-            }],
-            "tool_call": None,
-        }
+    if tool not in TOOL_REGISTRY:
+        log.error("UNKNOWN_TOOL user_id=%s tool=%s", user_id, tool)
+        return {**state, "tool_call": None}
 
-    raw_args = tool_call.get("arguments", {})
+    if tool.startswith("seller_"):
+        args["seller_id"] = int(user_id)
 
-    # 🔒 HARDENING: LLM arguments may be garbage
-    if isinstance(raw_args, dict):
-        args = raw_args.copy()
-    else:
-        args = {}
+    if tool == "seller_create_product":
+        args.setdefault("category_id", 2)
+        args.setdefault("stock_quantity", 10)
 
-    # 🔐 Inject trusted values ONLY from backend
-    args["seller_id"] = int(state["user_id"])
-
-    # Temporary sane defaults (until LLM asks explicitly)
-    args.setdefault("category_id", 2)      # Shoes
-    args.setdefault("stock_quantity", 10)
-
-    # ✅ Validate required fields
-    missing_fields = [
-        field
-        for field in REQUIRED_FIELDS.get(tool_name, [])
-        if field not in args or args[field] in (None, "")
+    missing = [
+        f for f in REQUIRED_FIELDS[tool]
+        if f not in args or args[f] in (None, "")
     ]
-
-    if missing_fields:
-        return {
-            **state,
-            "messages": state["messages"] + [{
-                "role": "assistant",
-                "content": (
-                    "I need the following details to proceed: "
-                    + ", ".join(missing_fields)
-                )
-            }],
-            "tool_call": None,
-        }
-
-    # 🚀 Execute tool
-    tool_fn = TOOL_REGISTRY[tool_name]
+    if missing:
+        log.warning(
+            "TOOL_MISSING_FIELDS user_id=%s tool=%s missing=%s",
+            user_id,
+            tool,
+            missing,
+        )
+        return {**state, "tool_call": None}
 
     try:
-        result = tool_fn(**args)
+        log.info(
+            "TOOL_EXEC_START user_id=%s tool=%s args=%s",
+            user_id,
+            tool,
+            args,
+        )
+        result = TOOL_REGISTRY[tool](**args)
+        log.info(
+            "TOOL_EXEC_OK user_id=%s tool=%s result=%s",
+            user_id,
+            tool,
+            result,
+        )
     except Exception as e:
+        log.exception(
+            "TOOL_EXEC_FAIL user_id=%s tool=%s error=%s",
+            user_id,
+            tool,
+            str(e),
+        )
         return {
             **state,
             "messages": state["messages"] + [{
                 "role": "assistant",
-                "content": f"Tool execution failed: {str(e)}"
+                "content": "❌ Action failed safely"
             }],
             "tool_call": None,
         }

@@ -1,167 +1,162 @@
-# ws/seller_agent_ws.py
-
-import uuid
 import json
-import os
-import traceback
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from jose import jwt, JWTError
 
 from core.database import SessionLocal
 from memory.context_loader import load_conversation_context
-
-from services.fact_reinforce import reinforce_fact, contradict_fact
-from services.fact_detect import detect_fact_confirmation
-
+from core.logger import get_logger
+from ws.session_store import ACTIVE_WS_SESSIONS
 from agents.langgraph.graph import agent_app
 
 router = APIRouter()
-
-SECRET_KEY = os.environ["JWT_SECRET"]
-ALGORITHM = "HS256"
+log = get_logger("WS")
 
 
 @router.websocket("/ws/seller/agent")
 async def seller_agent_ws(ws: WebSocket):
+
+    conversation_id = ws.query_params.get("conversation_id")
+
+    if not conversation_id:
+        await ws.close(code=1008)
+        return
+
+    seller_id = ACTIVE_WS_SESSIONS.get(conversation_id)
+
+    if not seller_id:
+        await ws.close(code=1008)
+        return
+
     await ws.accept()
 
-    chat_id = None
-    seller_id = None
-    messages: list[dict] = []
+    await ws.send_text(json.dumps({
+        "event": "ready",
+        "conversation_id": conversation_id
+    }))
+
+    messages = []
 
     try:
-        # ─── AUTH HANDSHAKE (LOOP UNTIL VALID) ───────────
         while True:
-            raw = await ws.receive_text()
 
-            try:
-                data = json.loads(raw)
-            except json.JSONDecodeError:
+            user_msg = await ws.receive_text()
+            user_msg = user_msg.strip()
+
+            if not user_msg:
+                continue
+
+            if user_msg.startswith("{") or user_msg.startswith("["):
                 await ws.send_text(json.dumps({
-                    "type": "auth_required",
-                    "message": "Send JSON first: { token, chat_id }"
+                    "event": "response",
+                    "status": "start"
+                }))
+                await ws.send_text(json.dumps({
+                    "event": "response",
+                    "status": "stream",
+                    "data": {"text": "I can’t process raw JSON input."}
+                }))
+                await ws.send_text(json.dumps({
+                    "event": "response",
+                    "status": "end"
                 }))
                 continue
 
-            token = data.get("token")
-            chat_id = data.get("chat_id")
+            messages.append({"role": "user", "content": user_msg})
 
-            if not token:
-                await ws.send_text(json.dumps({
-                    "type": "error",
-                    "message": "Missing JWT token"
-                }))
-                continue
-
-            try:
-                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            except JWTError:
-                await ws.send_text(json.dumps({
-                    "type": "error",
-                    "message": "Invalid or expired token"
-                }))
-                continue
-
-            seller_id = payload.get("seller_id")
-            if not seller_id:
-                await ws.send_text(json.dumps({
-                    "type": "error",
-                    "message": "seller_id missing in token"
-                }))
-                continue
-
-            if not chat_id:
-                chat_id = f"chat_{uuid.uuid4()}"
-                await ws.send_text(json.dumps({
-                    "type": "chat_init",
-                    "chat_id": chat_id
-                }))
-            else:
-                await ws.send_text(json.dumps({
-                    "type": "chat_resume",
-                    "chat_id": chat_id
-                }))
-
-            await ws.send_text(json.dumps({
-                "type": "ready",
-                "message": "Seller agent ready"
-            }))
-            break
-
-        # ─── MAIN CHAT LOOP (SAME AS PYTHON TESTS) ───────
-        while True:
-            msg = (await ws.receive_text()).strip()
-            if not msg:
-                continue
-
-            # ─── FACT MEMORY (NON BLOCKING) ────────────
-            try:
-                signal = detect_fact_confirmation(
-                    user_message=msg,
-                    chat_id=chat_id,
-                )
-                if signal:
-                    if signal["type"] == "reinforce":
-                        reinforce_fact(
-                            user_id=chat_id,
-                            fact_key=signal["fact_key"],
-                            fact_value=signal["fact_value"],
-                        )
-                    elif signal["type"] == "contradict":
-                        contradict_fact(
-                            user_id=chat_id,
-                            fact_key=signal["fact_key"],
-                            fact_value=signal["fact_value"],
-                        )
-            except Exception:
-                pass
-
-            # ─── LOAD MEMORY CONTEXT ───────────────────
+            # Load memory
             db = SessionLocal()
-            _, summary = load_conversation_context(db, chat_id)
+            _, memory = load_conversation_context(db, conversation_id)
             db.close()
 
-            messages.append({
-                "role": "user",
-                "content": msg
-            })
-
             state = {
-                "chat_id": chat_id,
+                "chat_id": conversation_id,
                 "user_id": seller_id,
                 "messages": messages,
                 "tool_call": None,
                 "tool_result": None,
-                "memory_context": summary or [],
+                "memory_context": memory or [],
             }
 
-            # 🔥 EXACT SAME PATH AS WORKING PY TESTS
-            result = agent_app.invoke(state)
+            # -----------------------------
+            # RUN LANGGRAPH ONCE
+            # -----------------------------
+            final_state = agent_app.invoke(state)
 
-            if not result or "messages" not in result:
+            # -----------------------------
+            # THINKING PHASE
+            # -----------------------------
+            await ws.send_text(json.dumps({
+                "event": "thinking",
+                "status": "start"
+            }))
+
+            thinking_text = final_state.get("thinking")
+
+            if thinking_text:
                 await ws.send_text(json.dumps({
-                    "type": "assistant",
-                    "content": "Something went wrong."
+                    "event": "thinking",
+                    "status": "stream",
+                    "data": {"text": thinking_text}
                 }))
-                continue
-
-            messages = result["messages"]
-            last = messages[-1]
 
             await ws.send_text(json.dumps({
-                "type": "assistant",
-                "content": last.get("content", "")
+                "event": "thinking",
+                "status": "end"
             }))
+
+            # -----------------------------
+            # ACTION PHASE (IF TOOL)
+            # -----------------------------
+            if final_state.get("tool_result") is not None:
+                await ws.send_text(json.dumps({
+                    "event": "action",
+                    "status": "stream",
+                    "data": {
+                        "step": 1,
+                        "text": "Executing tool"
+                    }
+                }))
+
+            # -----------------------------
+            # RESPONSE PHASE
+            # -----------------------------
+            await ws.send_text(json.dumps({
+                "event": "response",
+                "status": "start"
+            }))
+
+            final_messages = final_state.get("messages", [])
+
+            if final_messages:
+                last_msg = final_messages[-1]
+                if last_msg.get("role") == "assistant":
+                    text = last_msg.get("content", "")
+
+                    # simulate streaming token by token
+                    for token in text.split():
+                        await ws.send_text(json.dumps({
+                            "event": "response",
+                            "status": "stream",
+                            "data": {"text": token + " "}
+                        }))
+
+            await ws.send_text(json.dumps({
+                "event": "response",
+                "status": "end"
+            }))
+
+            # Keep last 30 messages only
+            messages = final_messages[-30:]
 
     except WebSocketDisconnect:
-        return
+        log.info("WS_DISCONNECT seller_id=%s", seller_id)
 
     except Exception as e:
-        traceback.print_exc()
+        log.exception("WS_FATAL seller_id=%s error=%s", seller_id, str(e))
+
+    finally:
+        # DO NOT close session per message
+        ACTIVE_WS_SESSIONS.pop(conversation_id, None)
         try:
-            await ws.send_text(json.dumps({
-                "type": "error",
-                "message": str(e)
-            }))
+            await ws.close()
         except Exception:
             pass
