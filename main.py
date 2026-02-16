@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import time
 from routers.agent_session import router as agent_session_router
 from core.logging_config import setup_logging, get_logger
@@ -23,7 +24,6 @@ from routers import (
 from routers.embeddings import router as embeddings_router
 from ws.seller_agent_ws import router as seller_agent_ws_router
 from ws.seller_metrics_ws import router as seller_metrics_ws_router
-from routers.agent_docs import router as agent_docs_router
 from geo_routing.routers import routing, poi
 
 
@@ -39,6 +39,9 @@ app = FastAPI(
     title="Shopease E-commerce Platform",
     version="1.0.0"
 )
+
+# Mount local storage for serving product images
+app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 
 app.add_middleware(
     CORSMiddleware,
@@ -79,12 +82,10 @@ app.include_router(categories.router, prefix="/api/categories", tags=["categorie
 app.include_router(agent_session_router)
 app.include_router(seller_metrics_ws_router)
 app.include_router(seller_agent_ws_router)
-app.include_router(agent_docs_router)
 
 app.include_router(embeddings_router)
 
-# IMPORTANT: search is mounted WITHOUT prefix
-# So endpoint is:
+# Search mounted without prefix
 # GET /search?q=shoe
 app.include_router(search.router)
 

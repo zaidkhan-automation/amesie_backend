@@ -85,3 +85,7 @@ graph_debug.log
 # ================================
 graph_debug_output.json
 graph_test_dump.sql
+.pt
+.save
+.storage/
+.pyc

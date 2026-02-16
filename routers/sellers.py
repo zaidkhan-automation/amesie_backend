@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
+from typing import List, Optional
 import uuid
 import re
 
@@ -9,6 +10,7 @@ from db import models
 from schemas import schemas
 from services.auth import get_current_user
 from services.product_vector_ingest import index_product
+from services.product_image_service import handle_product_image_upload
 
 router = APIRouter()
 
@@ -36,7 +38,7 @@ def get_current_seller(
 def get_my_products(
     skip: int = 0,
     limit: int = 20,
-    is_active: bool | None = None,
+    is_active: Optional[bool] = None,
     seller: models.Seller = Depends(get_current_seller),
     db: Session = Depends(get_db),
 ):
@@ -56,29 +58,35 @@ def get_my_products(
 
 
 @router.post("/products", response_model=schemas.Product)
-def create_product(
-    payload: schemas.ProductCreate,
+async def create_product(
+    name: str = Form(...),
+    description: Optional[str] = Form(None),
+    price: float = Form(...),
+    stock_quantity: int = Form(0),
+    category: str = Form(...),
+    images: List[UploadFile] = File([]),
     seller: models.Seller = Depends(get_current_seller),
     db: Session = Depends(get_db),
 ):
-    category = (
+
+    category_obj = (
         db.query(models.Category)
-        .filter(models.Category.name.ilike(payload.category.strip()))
+        .filter(models.Category.name.ilike(category.strip()))
         .first()
     )
 
-    if not category:
+    if not category_obj:
         raise HTTPException(status_code=400, detail="Invalid category")
 
-    slug = re.sub(r"[^a-z0-9]+", "-", payload.name.lower()).strip("-")
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     sku = f"AUTO-{seller.id}-{slug}-{uuid.uuid4().hex[:6].upper()}"
 
     product = models.Product(
-        name=payload.name,
-        description=payload.description,
-        price=payload.price,
-        stock_quantity=payload.stock_quantity,
-        category_id=category.id,
+        name=name,
+        description=description,
+        price=price,
+        stock_quantity=stock_quantity,
+        category_id=category_obj.id,
         sku=sku,
         seller_id=seller.id,
         is_active=True,
@@ -87,13 +95,37 @@ def create_product(
 
     try:
         db.add(product)
-        db.commit()
-        db.refresh(product)
+        db.flush()  # ⬅️ get product.id WITHOUT committing yet
+
+        # 🔥 Process images in SAME DB transaction
+        for file in images:
+            raw_bytes = await file.read()
+            if raw_bytes:
+                handle_product_image_upload(
+                    db=db,
+                    seller_id=seller.id,
+                    product_id=product.id,
+                    raw_bytes=raw_bytes,
+                )
+
+        db.commit()  # ⬅️ ONE SINGLE COMMIT for product + images
+
         index_product(db, product.id)
 
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="SKU collision")
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    product = (
+        db.query(models.Product)
+        .options(selectinload(models.Product.images))
+        .filter(models.Product.id == product.id)
+        .first()
+    )
 
     return product
 
@@ -118,19 +150,19 @@ def update_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    update_data = payload.dict(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True)
 
     if "category" in update_data:
-        category = (
+        category_obj = (
             db.query(models.Category)
             .filter(models.Category.name.ilike(update_data["category"].strip()))
             .first()
         )
 
-        if not category:
+        if not category_obj:
             raise HTTPException(status_code=400, detail="Invalid category")
 
-        product.category_id = category.id
+        product.category_id = category_obj.id
         del update_data["category"]
 
     for field, value in update_data.items():

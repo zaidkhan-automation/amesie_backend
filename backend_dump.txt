@@ -1,0 +1,1282 @@
+===== main.py =====
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from routers.embeddings import router as embeddings_router
+import time
+from routers import product_images
+from routers import categories
+from ws.seller_agent_ws import router as seller_agent_ws_router
+from routers.seller_product_image import router as seller_product_image_router
+from core.logging_config import setup_logging, get_logger
+from core.database import engine
+from db import models
+from ws.seller_metrics_ws import router as seller_metrics_ws_router
+from routers.agent_docs import router as agent_docs_router
+# ─────────────────────────────────────────────
+# GEO ROUTING IMPORTS AND ROUTER INCLUSION
+# ─────────────────────────────────────────────
+
+from geo_routing.routers import routing, poi
+
+
+from routers import (
+    auth,
+    products,
+    cart,
+    orders,
+    users,
+    sellers,
+    orders_history,
+    health,   
+)
+
+# ─────────────────────────────────────────────
+# APP SETUP
+# ─────────────────────────────────────────────
+setup_logging()
+logger = get_logger("main")
+
+models.Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title="Shopease E-commerce Platform",
+    version="1.0.0"
+)
+
+# ─────────────────────────────────────────────
+# MIDDLEWARES
+# ─────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = time.time() - start
+
+    logger.info(
+        f"{request.method} {request.url.path} "
+        f"{response.status_code} "
+        f"{duration:.3f}s "
+        f"{request.client.host}"
+    )
+    return response
+
+# ─────────────────────────────────────────────
+# ROUTERS (ONLY ROUTERS, NO INLINE ROUTES)
+# ─────────────────────────────────────────────
+app.include_router(health.router)  # /health
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(products.router, prefix="/api/products", tags=["products"])
+app.include_router(cart.router, prefix="/api/cart", tags=["cart"])
+app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
+app.include_router(orders_history.router, prefix="/api/orders", tags=["orders-history"])
+app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(sellers.router, prefix="/api/sellers", tags=["sellers"])
+app.include_router(seller_product_image_router)
+app.include_router(seller_metrics_ws_router)
+app.include_router(seller_agent_ws_router)
+app.include_router(agent_docs_router)
+app.include_router(embeddings_router)
+app.include_router(
+    categories.router,
+    prefix="/api/categories",
+    tags=["categories"],
+)
+app.include_router(product_images.router, prefix="/api")
+# ─────────────────────────────────────────────
+# GEO ROUTING ROUTER INCLUSION
+# ─────────────────────────────────────────────
+app.include_router(routing.router)
+app.include_router(poi.router)
+
+
+===== routers =====
+# Empty file to make routers a Python package
+from . import health
+from . import products
+# routers/agent_docs.py
+from fastapi import APIRouter
+
+router = APIRouter(tags=["Agent WebSocket"])
+
+@router.get("/ws/seller/agent")
+def seller_agent_ws_docs():
+    """
+    WebSocket Endpoint (DOCUMENTATION ONLY)
+
+    Connect via:
+    ws://<host>/ws/seller/agent
+
+    Handshake payload:
+    {
+      "token": "<JWT>",
+      "chat_id": null
+    }
+    """
+    return {
+        "type": "websocket",
+        "url": "/ws/seller/agent",
+        "note": "Use WebSocket client, not HTTP"
+    }
+from datetime import datetime, timedelta
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from core.database import get_db
+from db import models
+from db.models import OTPVerification
+
+from schemas.auth import SellerRegisterRequest, LoginRequest
+from schemas.otp import OTPVerifyRequest
+from schemas import schemas
+
+from services.otp_service import (
+    generate_otp,
+    hash_otp,
+    otp_expiry_time,
+    verify_otp,
+)
+from services.email_service import send_otp_email
+from services.auth import (
+    authenticate_user,
+    create_access_token,
+    get_password_hash,
+    get_current_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+)
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+# =====================================================
+# REGISTER USER → SEND OTP ONLY
+# =====================================================
+
+@router.post("/register")
+def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    if db.query(models.User).filter(models.User.email == user.email).first():
+        raise HTTPException(400, "Email already registered")
+
+    now = datetime.utcnow()
+
+    otp_row = (
+        db.query(OTPVerification)
+        .filter(
+            OTPVerification.email == user.email,
+            OTPVerification.used.is_(False),
+        )
+        .order_by(OTPVerification.created_at.desc())
+        .first()
+    )
+
+    if otp_row and otp_row.expires_at > now:
+        raise HTTPException(202, "OTP already sent. Please check email.")
+
+    otp = generate_otp()
+
+    otp_row = OTPVerification(
+        email=user.email,
+        otp_hash=hash_otp(otp),
+        purpose="auth",
+        expires_at=otp_expiry_time(),
+        payload={
+            "type": "USER",
+            "data": user.dict(),
+        },
+        last_sent_at=now,
+    )
+
+    db.add(otp_row)
+    db.commit()
+
+    try:
+        send_otp_email(user.email, otp)
+    except Exception as e:
+        logger.error(f"Email failed: {e}")
+        raise HTTPException(400, "Email not reachable or invalid")
+
+    return {"detail": "OTP sent. Please verify to complete registration."}
+
+# =====================================================
+# REGISTER SELLER → SEND OTP ONLY
+# =====================================================
+
+@router.post("/register/seller")
+def register_seller(payload: SellerRegisterRequest, db: Session = Depends(get_db)):
+    if db.query(models.User).filter(models.User.email == payload.email).first():
+        raise HTTPException(400, "Email already registered")
+
+    now = datetime.utcnow()
+
+    otp_row = (
+        db.query(OTPVerification)
+        .filter(
+            OTPVerification.email == payload.email,
+            OTPVerification.used.is_(False),
+        )
+        .order_by(OTPVerification.created_at.desc())
+        .first()
+    )
+
+    if otp_row and otp_row.expires_at > now:
+        raise HTTPException(202, "OTP already sent. Please check email.")
+
+    otp = generate_otp()
+
+    otp_row = OTPVerification(
+        email=payload.email,
+        otp_hash=hash_otp(otp),
+        purpose="auth",
+        expires_at=otp_expiry_time(),
+        payload={
+            "type": "SELLER",
+            "data": payload.dict(),
+        },
+        last_sent_at=now,
+    )
+
+    db.add(otp_row)
+    db.commit()
+
+    try:
+        send_otp_email(payload.email, otp)
+    except Exception as e:
+        logger.error(f"Email failed: {e}")
+        raise HTTPException(400, "Email not reachable or invalid")
+
+    return {"detail": "OTP sent. Please verify to complete seller registration."}
+
+# =====================================================
+# VERIFY OTP → FINALIZE REGISTRATION
+# =====================================================
+
+@router.post("/verify-otp")
+def verify_otp_endpoint(payload: OTPVerifyRequest, db: Session = Depends(get_db)):
+    otp_row = (
+        db.query(OTPVerification)
+        .filter(
+            OTPVerification.email == payload.email,
+            OTPVerification.used.is_(False),
+        )
+        .order_by(OTPVerification.created_at.desc())
+        .with_for_update()
+        .first()
+    )
+
+    if not otp_row:
+        raise HTTPException(400, "Invalid or expired OTP")
+
+    verify_otp(
+        db=db,
+        email=payload.email,
+        otp=payload.otp,
+        purpose=payload.purpose,
+    )
+
+    data = otp_row.payload
+    if not data:
+        raise HTTPException(500, "Registration payload missing")
+
+    if data["type"] == "USER":
+        d = data["data"]
+        user = models.User(
+            email=d["email"],
+            hashed_password=get_password_hash(d["password"]),
+            full_name=d["full_name"],
+            phone_number=d["phone_number"],
+            role=models.UserRole.CUSTOMER,
+            is_active=True,
+        )
+        db.add(user)
+
+    elif data["type"] == "SELLER":
+        d = data["data"]
+        user = models.User(
+            email=d["email"],
+            hashed_password=get_password_hash(d["password"]),
+            full_name=d["full_name"],
+            phone_number=d["phone_number"],
+            role=models.UserRole.SELLER,
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+
+        seller = models.Seller(
+            user_id=user.id,
+            store_name=d["store_name"],
+            store_description=d.get("store_description"),
+            store_address=d.get("store_address"),
+            gst_number=d.get("gst_number"),
+            bank_account_number=d.get("bank_account_number"),
+            bank_ifsc_code=d.get("bank_ifsc_code"),
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(seller)
+
+    otp_row.used = True
+    db.commit()
+
+    return {"message": "Registration completed successfully"}
+
+# =====================================================
+# LOGIN
+# =====================================================
+
+@router.post("/login", response_model=schemas.Token)
+def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = authenticate_user(payload.email, payload.password, db)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
+
+    token_data = {
+        "sub": user.email,
+        "role": user.role.value,
+    }
+
+    if user.role == models.UserRole.SELLER:
+        seller = (
+            db.query(models.Seller)
+            .filter(models.Seller.user_id == user.id)
+            .first()
+        )
+        if seller:
+            token_data["seller_id"] = seller.id
+
+    token = create_access_token(
+        data=token_data,
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+    return {"access_token": token, "token_type": "bearer"}
+
+# =====================================================
+# ME
+# =====================================================
+
+@router.get("/me", response_model=schemas.User)
+def read_users_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session, joinedload
+
+from core.database import get_db
+from db import models
+from schemas import schemas
+from services.auth import get_current_user
+
+router = APIRouter()
+
+
+# ─────────────────────────────────────────────
+# INTERNAL SANITIZER (RESPONSE SAFETY)
+# ─────────────────────────────────────────────
+def _sanitize_cart_items(items: List[models.CartItem]):
+    for item in items:
+        if item.product and item.product.seller:
+            if item.product.seller.rating is None:
+                item.product.seller.rating = 0.0
+    return items
+
+
+# ─────────────────────────────────────────────
+# GET CART ITEMS
+# ─────────────────────────────────────────────
+@router.get("/", response_model=List[schemas.CartItem])
+
+
+===== services =====
+import os
+from datetime import datetime, timedelta
+from typing import Optional
+
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+
+from core.database import get_db
+from db import models
+
+# ─────────────────────────────────────────────
+# SECURITY SETTINGS (SINGLE SOURCE OF TRUTH)
+# ─────────────────────────────────────────────
+JWT_SECRET = os.environ.get("JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET not set in environment")
+
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+security = HTTPBearer()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# ─────────────────────────────────────────────
+# PASSWORD NORMALIZATION (bcrypt hard limit fix)
+# ─────────────────────────────────────────────
+def _normalize_password(password: str) -> str:
+    """
+    bcrypt supports max 72 BYTES.
+    This avoids silent verification failures.
+    """
+    return password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+
+def get_password_hash(password: str) -> str:
+    password = _normalize_password(password)
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    plain_password = _normalize_password(plain_password)
+    return pwd_context.verify(plain_password, hashed_password)
+
+# ─────────────────────────────────────────────
+# JWT CREATION
+# ─────────────────────────────────────────────
+def create_access_token(
+    data: dict,
+    expires_delta: Optional[timedelta] = None
+):
+    to_encode = data.copy()
+
+    expire = datetime.utcnow() + (
+        expires_delta
+        if expires_delta
+        else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+
+    to_encode.update({"exp": expire})
+
+    return jwt.encode(
+        to_encode,
+        JWT_SECRET,
+        algorithm=ALGORITHM,
+    )
+
+# ─────────────────────────────────────────────
+# JWT VERIFICATION (HTTP)
+# ─────────────────────────────────────────────
+def verify_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    token = credentials.credentials
+
+    try:
+        payload = jwt.decode(
+            token,
+            JWT_SECRET,
+            algorithms=[ALGORITHM],
+        )
+        email: str | None = payload.get("sub")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token payload",
+            )
+        return email
+
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+# ─────────────────────────────────────────────
+# CURRENT USER (HTTP)
+# ─────────────────────────────────────────────
+def get_current_user(
+    email: str = Depends(verify_token),
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.query(models.User)
+        .filter(models.User.email == email)
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    return user
+
+# ─────────────────────────────────────────────
+# LOGIN AUTH
+# ─────────────────────────────────────────────
+def authenticate_user(
+    email: str,
+    password: str,
+    db: Session,
+):
+    user = (
+        db.query(models.User)
+        .filter(models.User.email == email)
+        .first()
+    )
+
+    if not user:
+        return None
+
+    if not verify_password(password, user.hashed_password):
+        return None
+
+    return user
+
+# ─────────────────────────────────────────────
+# RAW JWT DECODE (WebSocket / Agent)
+# ─────────────────────────────────────────────
+def decode_token_raw(token: str) -> dict:
+    """
+    Decode JWT without FastAPI Depends.
+    Used by WebSocket / agent auth.
+    """
+    try:
+        return jwt.decode(
+            token,
+            JWT_SECRET,
+            algorithms=[ALGORITHM],
+        )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+# services/email_service.py
+
+import os
+import smtplib
+import logging
+from email.mime.text import MIMEText
+from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
+
+
+def send_otp_email(email: str, otp: str):
+    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+    SMTP_USER = os.getenv("SMTP_USER")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+    # ─────────────────────────
+    # HARD FAIL: env missing
+    # ─────────────────────────
+    if not SMTP_USER or not SMTP_PASSWORD:
+        logger.critical("SMTP credentials are missing in environment variables")
+        raise HTTPException(
+            status_code=500,
+            detail="Email service not configured. Please contact support.",
+        )
+
+    msg = MIMEText(f"Your OTP code is: {otp}")
+    msg["Subject"] = "Your OTP Code"
+    msg["From"] = SMTP_USER
+    msg["To"] = email
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_USER, [email], msg.as_string())
+
+            # log success for traceability (optional but useful)
+            logger.info(f"OTP email accepted by SMTP for {email}")
+
+    # ─────────────────────────
+    # AUTH ERROR (VERY COMMON)
+    # ─────────────────────────
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"SMTP auth failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Email service authentication failed. Please try later.",
+        )
+
+    # ─────────────────────────
+    # CONNECTION / NETWORK
+    # ─────────────────────────
+    except smtplib.SMTPConnectError as e:
+        logger.error(f"SMTP connection failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to connect to email server. Please try later.",
+        )
+
+    # ─────────────────────────
+    # ANY OTHER SMTP ERROR
+    # ─────────────────────────
+    except smtplib.SMTPException as e:
+        logger.error(f"SMTP error while sending OTP to {email}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send OTP email. Please try again later.",
+        )
+
+    # ─────────────────────────
+    # UNKNOWN ERROR
+    # ─────────────────────────
+    except Exception as e:
+        logger.exception(f"Unexpected error while sending OTP to {email}")
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error while sending OTP. Please try again later.",
+        )
+# services/fact_detect.py
+
+from typing import Literal, Optional
+
+from services.fact_reinforce import reinforce_fact, contradict_fact
+
+
+def detect_fact_confirmation(
+    *,
+    user_id: str,
+    message: str,
+    fact_key: str,
+    fact_value: str,
+) -> Optional[Literal["reinforce", "contradict"]]:
+    """
+    Very strict explicit detection.
+    No inference. No guessing.
+    """
+
+    msg = message.lower().strip()
+    val = fact_value.lower()
+
+    # Explicit confirmation patterns
+    confirm_phrases = [
+        f"my {fact_key} is {val}",
+        f"yes my {fact_key} is {val}",
+        f"correct my {fact_key} is {val}",
+        f"that's right my {fact_key} is {val}",
+    ]
+
+    # Explicit contradiction patterns
+    contradict_phrases = [
+        f"no my {fact_key} is not {val}",
+        f"my {fact_key} is not {val}",
+        f"that's wrong my {fact_key} is not {val}",
+    ]
+
+    if any(p in msg for p in confirm_phrases):
+        reinforce_fact(
+            user_id=user_id,
+            fact_key=fact_key,
+            fact_value=fact_value,
+        )
+        return "reinforce"
+
+    if any(p in msg for p in contradict_phrases):
+        contradict_fact(
+            user_id=user_id,
+            fact_key=fact_key,
+            fact_value=fact_value,
+        )
+        return "contradict"
+
+    return None
+# services/fact_ingest.py
+
+from db.models.user_facts import insert_user_fact
+from vectorstore.qdrant_writer import upsert_user_fact   # ✅ FIXED: correct function
+from embeddings.mpnet import embed_text
+
+
+def ingest_facts(
+
+
+===== db/models =====
+from .otp_verification import *
+from .user import *
+from .seller import *
+from .category import *
+from .product import *
+from .product_image import *
+from .cart import CartItem
+from .order import *
+from .order_item import *
+from .notification import *
+from sqlalchemy import Column, Integer, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from core.database import Base
+
+
+class CartItem(Base):
+    __tablename__ = "cart_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    product_id = Column(Integer, ForeignKey("products.id"))
+    quantity = Column(Integer, default=1)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", back_populates="cart_items")
+    product = relationship("Product", back_populates="cart_items")
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from core.database import Base
+import enum
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    description = Column(Text)
+    image_url = Column(String)
+
+    products = relationship("Product", back_populates="category")
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from core.database import Base
+import enum
+
+class NotificationType(str, enum.Enum):
+    ORDER_PLACED = "order_placed"
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String)
+    message = Column(Text)
+    notification_type = Column(Enum(NotificationType))
+    created_at = Column(DateTime, server_default=func.now())
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from core.database import Base
+import enum
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    total_amount = Column(Float, nullable=False)
+    order_status = Column(String, default="pending")
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User")
+    order_items = relationship("OrderItem", back_populates="order")
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from core.database import Base
+import enum
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id = Column(Integer, primary_key=True)
+    order_id = Column(Integer, ForeignKey("orders.id"))
+    product_id = Column(Integer, ForeignKey("products.id"))
+    quantity = Column(Integer)
+    price = Column(Float)
+
+    order = relationship("Order", back_populates="order_items")
+    product = relationship("Product")
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON
+from sqlalchemy.sql import func
+from core.database import Base
+
+class OTPVerification(Base):
+    __tablename__ = "otp_verifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    email = Column(String, index=True, nullable=False)
+    otp_hash = Column(String, nullable=False)
+    purpose = Column(String, nullable=False, default="auth")
+
+    expires_at = Column(DateTime, nullable=False)
+    attempts = Column(Integer, default=0)
+
+    verified = Column(Boolean, default=False)
+    used = Column(Boolean, default=False)
+
+    payload = Column(JSON, nullable=True)  # 🔥 pending registration data
+
+    last_sent_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=func.now())
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Float,
+    DateTime,
+    Text,
+    ForeignKey,
+    Boolean,
+)
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from core.database import Base
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    price = Column(Float, nullable=False)
+    sku = Column(String, unique=True, nullable=False)
+
+    stock_quantity = Column(Integer, default=0)
+
+    category_id = Column(Integer, ForeignKey("categories.id"))
+    seller_id = Column(Integer, ForeignKey("sellers.id"), nullable=False)
+
+    is_active = Column(Boolean, default=True)
+    is_deleted = Column(Boolean, default=False)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    # relationships
+    category = relationship("Category", back_populates="products")
+    seller = relationship("Seller", back_populates="products")
+
+    cart_items = relationship(
+        "CartItem",
+        back_populates="product",
+        cascade="all, delete-orphan",
+    )
+
+    images = relationship(
+        "ProductImage",
+        back_populates="product",
+        cascade="all, delete-orphan",
+        order_by="ProductImage.display_order",
+    )
+# db/models/product_image.py
+
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
+from core.database import Base
+
+
+class ProductImage(Base):
+    __tablename__ = "product_images"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+
+    image_url = Column(String, nullable=False)
+    display_order = Column(Integer, nullable=False)
+    is_primary = Column(Boolean, default=False)
+
+    product = relationship(
+        "Product",
+        back_populates="images",
+    )
+from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey
+from sqlalchemy.orm import relationship
+from core.database import Base
+
+
+class Seller(Base):
+    __tablename__ = "sellers"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # FK to users table
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Business info
+    store_name = Column(String, nullable=False)
+    store_description = Column(Text, nullable=True)
+    store_address = Column(Text, nullable=True)
+    business_license = Column(String, nullable=True)
+
+    gst_number = Column(String, nullable=True)
+    bank_account_number = Column(String, nullable=True)
+    bank_ifsc_code = Column(String, nullable=True)
+
+    is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=True)
+
+    # =========================
+    # RELATIONSHIPS
+    # =========================
+
+    # One Seller → One User
+    user = relationship(
+        "User",
+        back_populates="seller",
+        lazy="joined",
+    )
+
+    # One Seller → Many Products
+    products = relationship(
+        "Product",
+        back_populates="seller",
+        cascade="all, delete-orphan",
+    )
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from core.database import Base
+import enum
+
+
+class UserRole(str, enum.Enum):
+    ADMIN = "ADMIN"
+    SELLER = "SELLER"
+    CUSTOMER = "CUSTOMER"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    full_name = Column(String, nullable=False)
+
+    # OPTIONAL (frontend depends on this)
+    phone_number = Column(String, unique=True, nullable=True)
+
+    role = Column(Enum(UserRole), default=UserRole.CUSTOMER)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # =========================
+    # RELATIONSHIPS
+    # =========================
+
+    # One User → One Seller (only if role = SELLER)
+    seller = relationship(
+        "Seller",
+        back_populates="user",
+        uselist=False,
+    )
+
+    # One User → Many CartItems
+    cart_items = relationship(
+        "CartItem",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+# db/models/user_facts.py
+
+import uuid
+from sqlalchemy import text
+from core.database import SessionLocal
+
+
+def get_fact_by_key_value(
+    *,
+    user_id: str,
+    fact_key: str,
+    fact_value: str,
+) -> dict | None:
+    """
+    Returns:
+    {
+        fact_id: str,
+        r_raw: float,
+        p_raw: float
+    }
+    """
+
+
+===== schemas =====
+from __future__ import annotations
+
+from pydantic import BaseModel, EmailStr, ConfigDict
+from typing import Optional, List
+from datetime import datetime
+from enum import Enum
+
+# ─────────────────────────────────────────────
+# ENUMS
+# ─────────────────────────────────────────────
+
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    SELLER = "SELLER"
+    CUSTOMER = "CUSTOMER"
+
+
+class NotificationType(str, Enum):
+    ORDER_PLACED = "order_placed"
+    ORDER_CONFIRMED = "order_confirmed"
+    ORDER_SHIPPED = "order_shipped"
+    ORDER_DELIVERED = "order_delivered"
+    ORDER_CANCELLED = "order_cancelled"
+    PAYMENT_RECEIVED = "payment_received"
+
+
+# ─────────────────────────────────────────────
+# AUTH / TOKEN
+# ─────────────────────────────────────────────
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+# ─────────────────────────────────────────────
+# USER
+# ─────────────────────────────────────────────
+
+class UserBase(BaseModel):
+    email: EmailStr
+    full_name: str
+    phone_number: Optional[str] = None
+    role: UserRole = UserRole.CUSTOMER
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class User(UserBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# ADDRESS
+# ─────────────────────────────────────────────
+
+class AddressBase(BaseModel):
+    full_name: str
+    address_line1: str
+    address_line2: Optional[str] = None
+    city: str
+    state: str
+    postal_code: str
+    country: str
+    is_default: bool = False
+
+
+class AddressCreate(AddressBase):
+    pass
+
+
+class Address(AddressBase):
+    id: int
+    user_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# CATEGORY
+# ─────────────────────────────────────────────
+
+class CategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+class Category(CategoryBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# PRODUCT IMAGE
+# ─────────────────────────────────────────────
+
+class ProductImageBase(BaseModel):
+    image_url: str
+    display_order: int
+    is_primary: bool = False
+
+
+class ProductImage(ProductImageBase):
+    id: int
+    product_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# PRODUCT
+# ─────────────────────────────────────────────
+
+class ProductBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    stock_quantity: int = 0
+    category_id: int
+
+
+class ProductCreate(ProductBase):
+    pass
+
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    stock_quantity: Optional[int] = None
+    category_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class SellerBasic(BaseModel):
+    id: int
+    store_name: str
+    rating: Optional[float] = 0.0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Product(ProductBase):
+    id: int
+    sku: str
+    is_active: bool
+    is_deleted: bool
+    created_at: datetime
+
+    category: Optional[Category] = None
+    seller: Optional[SellerBasic] = None
+    images: List[ProductImage] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# CART
+# ─────────────────────────────────────────────
+
+class CartItemBase(BaseModel):
+    product_id: int
+    quantity: int
+
+
+class CartItemCreate(CartItemBase):
+    pass
+
+
+class CartItem(CartItemBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    product: Product
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# WISHLIST
+# ─────────────────────────────────────────────
+
+class WishlistItemBase(BaseModel):
+    product_id: int
+
+
+class WishlistItemCreate(WishlistItemBase):
+    pass
+
+
+class WishlistItem(WishlistItemBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    product: Product
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# ORDERS
+# ─────────────────────────────────────────────
+
+class OrderItemBase(BaseModel):
+    product_id: int
+    quantity: int
+    price: float
+
+
+class OrderItemCreate(OrderItemBase):
+    pass
+
+
+class OrderItem(OrderItemBase):
+    id: int
+    order_id: int
+    created_at: datetime
+    product: Optional[Product] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderBase(BaseModel):
+    location_id: int
+
+
+class OrderCreate(OrderBase):
+    pass
+
+
+class Order(OrderBase):
+    id: int
+    user_id: int
+    total_amount: float
+    order_status: str
+    created_at: datetime
+
+    order_items: List[OrderItem] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─────────────────────────────────────────────
+# NOTIFICATIONS
+# ─────────────────────────────────────────────
+
+class NotificationBase(BaseModel):
+    title: str
+    message: str
+    notification_type: NotificationType
+    order_id: Optional[int] = None
+
+
+class NotificationCreate(NotificationBase):
+    user_id: int
+
+
+class Notification(NotificationBase):
+    id: int
+    user_id: int
+    is_read: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

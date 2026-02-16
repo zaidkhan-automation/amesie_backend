@@ -1,0 +1,1 @@
+./venv/bin/pip install duckdb pyarrow pandas psycopg2-binary

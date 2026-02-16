@@ -14,7 +14,11 @@ class EmbedResponse(BaseModel):
     dimension: int
     model: str
 
-@router.post("", response_model=EmbedResponse)
+@router.post(
+    "",
+    response_model=EmbedResponse,
+    include_in_schema=False
+)
 def embed(req: EmbedRequest):
     embeddings = embed_texts(req.texts)
     return {
@@ -23,6 +27,9 @@ def embed(req: EmbedRequest):
         "model": "paraphrase-multilingual-mpnet-base-v2"
     }
 
-@router.get("/health")
+@router.get(
+    "/health",
+    include_in_schema=False
+)
 def health():
     return {"status": "ok"}
